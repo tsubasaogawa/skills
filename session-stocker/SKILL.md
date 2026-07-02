@@ -1,6 +1,6 @@
 ---
 name: session-stocker
-description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`, default: `/mnt/c/Users/t_ogawa/Documents/documents/12_Artifacts/`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
+description: "Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`, default: `/mnt/c/Users/t_ogawa/Documents/documents/12_Artifacts/`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder."
 ---
 
 # Session Stock
