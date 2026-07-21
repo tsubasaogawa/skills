@@ -1,17 +1,14 @@
 # session-stocker-skill
 
-This skill extracts reusable knowledge from the current conversation and saves it as a Markdown note in an artifacts folder.
+This skill saves the current conversation as a Markdown note in an artifacts folder, keeping the actual exchange verbatim rather than compressing it into a summary.
 
 ## Overview
 
-This skill turns an in-progress session into something you can revisit later. Instead of preserving a chat transcript, it focuses on concise, reusable information such as conclusions, decision factors, caveats, and references.
+This skill turns an in-progress session into something you can revisit later. The core of the saved note is a verbatim transcript of the conversation; a short overview, a durable-knowledge section, and reference links can be added around it.
 
 The output directory is configured through `config.toml`.
 
 In this repository, the skill reads `artifacts.directory` from the root `config.toml`.
-If it is not set, the following default path is used:
-
-`/mnt/c/Users/t_ogawa/Documents/documents/12_Artifacts/`
 
 ```toml
 [artifacts]
@@ -59,16 +56,27 @@ Examples:
 
 ## Markdown output format
 
-The saved Markdown must include the following sections in this order:
+The saved Markdown must always include the following sections in this order:
 
 ```md
 # <session-summary>
 
 ## 概要
 
-## 知見
+## 会話内容
+```
 
+`知見` is optional: it's only added after the file is saved, once the user has confirmed they want it. When present, it goes right after `会話内容`:
+
+```md
+## 知見
+```
+
+If the session contains one or more relevant URLs, append this optional section last:
+
+```md
 ## 参考情報
+- https://example.com/reference
 ```
 
 ### Purpose of each section
@@ -77,9 +85,13 @@ The saved Markdown must include the following sections in this order:
 
 Summarize what the session accomplished in a short, outcome-oriented way.
 
+#### `会話内容`
+
+A verbatim, turn-by-turn transcript of what the user and the assistant actually said, in order — not a summary or paraphrase. Each turn is rendered as a `**User:**` or `**Assistant:**` block. Tool-call/tool-result noise, raw command output, and system-reminder content are excluded; only what the two parties actually said to each other is kept.
+
 #### `知見`
 
-Record learnings and decisions that will be useful later. Use bullet points when there are multiple items.
+Optional. Record learnings and decisions that will be useful later. Use bullet points when there are multiple items.
 
 Include:
 
@@ -88,31 +100,27 @@ Include:
 - patterns worth reusing
 - pitfalls or caveats discovered during the session
 
+Only included when the user explicitly asks for it after the file has been saved (see Execution flow).
+
 #### `参考情報`
 
-Record concrete references that may be useful later.
+Record only relevant URLs that may be useful later.
 
-Examples:
+Do not include file paths, command names, tool names, issue or PR numbers, or any other non-URL references.
 
-- file paths
-- command names
-- tool names
-- issue or PR numbers
-- URLs referenced during the work
-
-If there are no relevant items, write `- なし` instead of leaving the section empty.
+If there are no relevant URLs, omit the entire `参考情報` section.
 
 ## Execution flow
 
 This skill follows the steps below:
 
-1. Review the current conversation and extract information with lasting value
-2. Decide on a short summary for the session
-3. Read `config.toml` and resolve `artifacts.directory`
-4. Ensure the resolved output directory exists
-5. Build the Markdown content in the required format
-6. Save the file using the required naming rule
-7. Tell the user the saved path and briefly summarize what was captured
+1. Reconstruct the verbatim turn-by-turn transcript (`会話内容`) and decide on a short summary for the session
+2. Read `config.toml` and resolve `artifacts.directory`
+3. Ensure the resolved output directory exists
+4. Build the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
+5. Save the file using the required naming rule
+6. Tell the user the saved path and briefly summarize what was captured
+7. Ask the user whether they want a `知見` section added; if they agree, append it to the saved file
 
 ## Quality bar
 
@@ -120,9 +128,10 @@ Before saving, make sure at least the following are true:
 
 - the file is actually written to disk
 - the filename follows the required pattern
-- the content is concise and useful when revisited later
-- the `知見` section contains practical takeaways rather than a transcript rewrite
-- the `参考情報` section contains concrete references or `- なし`
+- the `会話内容` section is a verbatim transcript, not a summary or paraphrase, and excludes tool-call noise
+- the `知見` section is only present when the user explicitly asked for it
+- the `参考情報` section appears only when relevant URLs exist
+- when `参考情報` is present, it contains URLs only
 
 ## Why this skill is useful
 

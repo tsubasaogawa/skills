@@ -1,6 +1,6 @@
 ---
 name: session-stocker
-description: "Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`, default: `/mnt/c/Users/t_ogawa/Documents/documents/12_Artifacts/`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder."
+description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
 ---
 
 # Session Stock
@@ -9,7 +9,7 @@ Turn the current session into a reusable Markdown artifact and save it to the di
 
 ## Goal
 
-Capture the conversation in a form the user can revisit later. Focus on durable takeaways rather than chat-like narration.
+Capture the conversation in a form the user can revisit later. Preserve the actual exchange verbatim rather than compressing it into a summary — durable takeaways (`知見`) are an optional add-on, not the primary content.
 
 ## When to use this skill
 
@@ -28,18 +28,28 @@ Create one Markdown file at:
 `<artifacts-directory>/<YYYYMMDD>_<session-summary>.md`
 
 Resolve `<artifacts-directory>` from `config.toml` using `artifacts.directory`.
-If `artifacts.directory` is missing, fall back to `/mnt/c/Users/t_ogawa/Documents/documents/12_Artifacts/`.
 
-The file must contain these sections in this order:
+The file must always contain these sections in this order:
 
 ```md
 # <session-summary>
 
 ## 概要
 
-## 知見
+## 会話内容
+```
 
+`知見` is optional. Only add it after saving, once the user has confirmed they want it (see Execution steps). When present, it goes right after `会話内容`:
+
+```md
+## 知見
+```
+
+If the session includes one or more relevant URLs, append this optional section last:
+
+```md
 ## 参考情報
+- https://example.com/reference
 ```
 
 ## Writing guidance
@@ -74,9 +84,18 @@ If a file with the same name already exists, append `-2`, `-3`, and so on instea
 
 Write a short overview of what the session accomplished. Keep it compact and outcome-oriented.
 
+#### `会話内容`
+
+This is the core of the artifact: a verbatim, turn-by-turn transcript of what the user and the assistant actually said, in order. Do not summarize or condense it — the whole point of this section is to preserve the conversation as it happened, not a distilled version of it.
+
+- Render each turn as a `**User:**` or `**Assistant:**` block followed by that turn's text, in the order the turns occurred.
+- Use the actual message text the user and assistant exchanged, not a paraphrase.
+- Leave out tool-call/tool-result noise (function calls, raw command output, intermediate tool payloads) — keep only what the user and the assistant actually said to each other. Local-command output and system-reminder tags are not part of the conversation and should also be left out.
+- If the session is extremely long, it's fine to include the whole thing; do not truncate for length unless the user asks you to.
+
 #### `知見`
 
-List the important learnings, decisions, trade-offs, or implementation notes that would help someone reuse the result later. Prefer bullets when there are multiple items.
+Optional. List the important learnings, decisions, trade-offs, or implementation notes that would help someone reuse the result later. Prefer bullets when there are multiple items.
 
 Include:
 - conclusions that were reached
@@ -84,34 +103,33 @@ Include:
 - patterns worth repeating
 - pitfalls or caveats discovered during the session
 
+Only write this section when the user has confirmed they want it (see Execution steps) — otherwise leave it out entirely.
+
 #### `参考情報`
 
-Record concrete references from the session that may be useful later.
+Record only relevant URLs from the session that may be useful later.
 
-Examples:
-- file paths
-- command names
-- tool names
-- issue or PR numbers
-- external URLs mentioned during the work
+Do not include file paths, command names, tool names, issue or PR numbers, or any other non-URL references.
 
-If a category has no relevant items, write `- なし` instead of leaving the section empty.
+If there are no relevant URLs, omit the entire `参考情報` section.
 
 ## Execution steps
 
-1. Review the current conversation and extract durable information.
-2. Generate the session summary.
-3. Read `config.toml` and resolve `artifacts.directory`.
-4. Ensure the resolved artifacts directory exists. Create it if necessary.
-5. Create the final Markdown content.
-6. Save the file using the required naming rule.
-7. Tell the user the saved path and briefly summarize what was captured.
+1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
+2. Read `config.toml` and resolve `artifacts.directory`.
+3. Ensure the resolved artifacts directory exists. Create it if necessary.
+4. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
+5. Save the file using the required naming rule.
+6. Tell the user the saved path and briefly summarize what was captured.
+7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and append the `知見` section to the already-saved file (right after `会話内容`, before `参考情報` if present). If they decline or don't respond, leave the file as is.
 
 ## Quality bar
 
 Before saving, check that:
 - the file is actually written to disk
 - the filename matches the required pattern
-- the content is concise and useful later
-- the `知見` section contains real takeaways, not a transcript rewrite
-- the `参考情報` section contains concrete references or `- なし`
+- the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase
+- tool-call noise, raw command output, and system-reminder content are excluded from `会話内容`
+- the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
+- the `参考情報` section appears only when relevant URLs exist
+- when `参考情報` is present, it contains URLs only
