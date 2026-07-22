@@ -1,0 +1,41 @@
+{
+  "skill_name": "ai-credit-efficient-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "このブランチ (feature/pagination-fix) の差分を AI Credit を節約しつつレビューして。重大な問題だけ見たい。",
+      "expected_output": "The review starts with cheap triage, stays narrow because the diff is small and localized, and reports the off-by-one pagination bug (1-based page with offset = page * per_page skips the first page) as a substantive finding.",
+      "files": [],
+      "assertions": [
+        "detects-pagination-offset-bug: The review reports that 1-based page combined with offset = page * per_page skips the first page of results (off-by-one).",
+        "concise-verdict-first: The review leads with a short verdict and stays under roughly 60 lines with no per-file exhaustive commentary.",
+        "no-style-only-findings: The review contains no purely stylistic or naming-only findings presented as issues.",
+        "no-false-exhaustiveness: The review does not claim to have exhaustively reviewed everything when it was selective."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "このブランチ (feature/session-refactor) の差分をコスト低めで見て、危ないところだけレビューして。",
+      "expected_output": "The skill triages the branch, skips the large uv.lock noise, prioritizes the auth hotspot, and reports the privilege escalation (editors can now delete articles where previously only admins could).",
+      "files": [],
+      "assertions": [
+        "detects-privilege-escalation: The review reports that can_delete_article now allows the editor role to delete articles where previously only admin could (permission widening).",
+        "skips-lockfile-noise: The review does not present uv.lock content changes as findings; at most it notes the lockfile was skipped as noise.",
+        "concise-verdict-first: The review leads with a short verdict and focuses on the auth change rather than uniformly covering all files.",
+        "no-style-only-findings: The review contains no purely stylistic or naming-only findings presented as issues."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "このブランチ (feature/prod-iam-migration) は production Terraform と IAM を触っています。AI Credit は意識したいけど、危ないところの見落としは減らしたいです。レビューお願いします。",
+      "expected_output": "The skill notices high-risk infra/security signals, deepens review on those files, and reports the over-permissive IAM policy (Action * on Resource *) and the destructive DROP COLUMN migration.",
+      "files": [],
+      "assertions": [
+        "detects-wildcard-iam: The review flags the new IAM policy granting Action \"*\" on Resource \"*\" as over-permissive and high severity.",
+        "detects-destructive-migration: The review flags the ALTER TABLE ... DROP COLUMN legacy_body migration as destructive or irreversible.",
+        "risk-focused-depth: The review treats the change as high-risk (production Terraform / IAM) and goes deeper on those files rather than staying shallow.",
+        "no-style-only-findings: The review contains no purely stylistic or naming-only findings presented as issues."
+      ]
+    }
+  ]
+}
