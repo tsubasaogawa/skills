@@ -30,15 +30,15 @@ Typical triggers:
 
 The generated file uses the following format:
 
-`<artifacts-directory>/<YYYYMMDD>_<session-summary>.md`
+`<artifacts-directory>/<YYYYMMDD>_<HHMM>_<session-summary>.md`
 
 Here, `<artifacts-directory>` is `artifacts.directory` from `config.toml`.
 
 ### Filename rules
 
-- Prefix the filename with the current date in `YYYYMMDD` format
+- Prefix the filename with the current date and time in `YYYYMMDD_HHMM` format (24-hour clock, local time)
 - Use a short summary of the conversation in the filename
-- Replace spaces with `-`
+- Spaces are allowed in the title portion and are kept as-is (not replaced with `-` or `_`)
 - Remove or replace unsafe filename characters such as `/`, `\\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`
 - Keep the sanitized filename readable
 

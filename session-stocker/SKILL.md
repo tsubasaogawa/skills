@@ -25,7 +25,7 @@ Typical triggers include:
 
 Create one Markdown file at:
 
-`<artifacts-directory>/<YYYYMMDD>_<session-summary>.md`
+`<artifacts-directory>/<YYYYMMDD>_<HHMM>_<session-summary>.md`
 
 Resolve `<artifacts-directory>` from `config.toml` using `artifacts.directory`.
 
@@ -70,9 +70,9 @@ Examples:
 
 ### 2. Build a safe filename
 
-- Prefix the filename with the current date in `YYYYMMDD` format.
+- Prefix the filename with the current date and time in `YYYYMMDD_HHMM` format (24-hour clock, local time).
 - Convert the summary into a filename-safe form.
-- Replace spaces with `-`.
+- Spaces are allowed in the title portion — do not replace them with `-` or `_`.
 - Remove or replace characters that are unsafe in filenames, such as `/`, `\\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`.
 - Keep the summary readable after sanitizing.
 
@@ -116,7 +116,7 @@ If there are no relevant URLs, omit the entire `参考情報` section.
 ## Execution steps
 
 1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
-2. Read `config.toml` and resolve `artifacts.directory`.
+2. Read `config.toml` and resolve `artifacts.directory`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 3. Ensure the resolved artifacts directory exists. Create it if necessary.
 4. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
 5. Save the file using the required naming rule.
