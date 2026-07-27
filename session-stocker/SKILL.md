@@ -21,13 +21,24 @@ Typical triggers include:
 - `今回の内容を artifacts に保存して`
 - `セッションの知見をメモ化して`
 
+## Configuration
+
+The config file always lives at `~/.config/session-stocker/config.toml`, regardless of where this skill itself is installed:
+
+```toml
+[artifacts]
+directory = "/path/to/your/artifacts"
+```
+
+If that file doesn't exist, stop and tell the user to create it (they can copy `config.toml.template` from the skill directory to `~/.config/session-stocker/config.toml` and fill in `artifacts.directory`) rather than guessing a directory or writing anywhere else.
+
 ## Output requirements
 
 Create one Markdown file at:
 
 `<artifacts-directory>/<YYYYMMDD>_<HHMM>_<session-summary>.md`
 
-Resolve `<artifacts-directory>` from `config.toml` using `artifacts.directory`.
+Resolve `<artifacts-directory>` from `~/.config/session-stocker/config.toml` using `artifacts.directory` (see Configuration above).
 
 The file must always contain these sections in this order:
 
@@ -113,10 +124,21 @@ Do not include file paths, command names, tool names, issue or PR numbers, or an
 
 If there are no relevant URLs, omit the entire `参考情報` section.
 
+### 4. Linking to other notes (Obsidian-aware)
+
+This skill doesn't go looking for related notes to link on its own — this rule only matters if a section ends up referencing another note that already lives in the same stock directory (for example, if the user asks you to link a related past note, or `知見` naturally calls one out).
+
+When that happens, check whether the artifacts directory is inside an Obsidian vault: resolve the Git repository root for `artifacts.directory` (e.g. `git -C <artifacts-directory> rev-parse --show-toplevel`) and check whether a `.obsidian` directory exists directly under that root. If it does, the stock is Obsidian-managed.
+
+- Obsidian-managed: use Obsidian's wiki link syntax, `[[Note Title]]` (no `.md` extension; use `[[Note Title|Display Text]]` if you need an alias).
+- Not Obsidian-managed (not a Git repo, or no `.obsidian` at the root): use a normal Markdown relative link, `[Note Title](relative/path.md)`.
+
+This only governs links between notes in the stock. `参考情報` stays URL-only regardless of this detection.
+
 ## Execution steps
 
 1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
-2. Read `config.toml` and resolve `artifacts.directory`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
+2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 3. Ensure the resolved artifacts directory exists. Create it if necessary.
 4. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
 5. Save the file using the required naming rule.
@@ -133,3 +155,4 @@ Before saving, check that:
 - the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only
+- any link to another note in the stock directory follows the Obsidian-detection rule (wiki link vs. Markdown link), not a mix of both

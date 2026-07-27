@@ -6,13 +6,19 @@ This skill saves the current conversation as a Markdown note in an artifacts fol
 
 This skill turns an in-progress session into something you can revisit later. The core of the saved note is a verbatim transcript of the conversation; a short overview, a durable-knowledge section, and reference links can be added around it.
 
-The output directory is configured through `config.toml`.
-
-In this repository, the skill reads `artifacts.directory` from the root `config.toml`.
+The output directory is configured through `config.toml`, which always lives at `~/.config/session-stocker/config.toml` — not inside this repository.
 
 ```toml
 [artifacts]
 directory = "/path/to/your/artifacts"
+```
+
+### Setup
+
+```bash
+mkdir -p ~/.config/session-stocker
+cp config.toml.template ~/.config/session-stocker/config.toml
+# edit ~/.config/session-stocker/config.toml and set artifacts.directory
 ```
 
 ## When to use it
@@ -32,7 +38,7 @@ The generated file uses the following format:
 
 `<artifacts-directory>/<YYYYMMDD>_<HHMM>_<session-summary>.md`
 
-Here, `<artifacts-directory>` is `artifacts.directory` from `config.toml`.
+Here, `<artifacts-directory>` is `artifacts.directory` from `~/.config/session-stocker/config.toml`.
 
 ### Filename rules
 
@@ -110,12 +116,21 @@ Do not include file paths, command names, tool names, issue or PR numbers, or an
 
 If there are no relevant URLs, omit the entire `参考情報` section.
 
+#### Links to other notes
+
+This skill doesn't search for related notes on its own. But if a section ends up referencing another note that already lives in the stock directory, the link syntax depends on whether the stock is an Obsidian vault: resolve the Git repository root for `artifacts.directory` and check for a `.obsidian` directory directly under it.
+
+- Obsidian vault detected: use wiki link syntax, `[[Note Title]]` (no `.md` extension; `[[Note Title|Display Text]]` for an alias).
+- Otherwise: use a normal Markdown relative link, `[Note Title](relative/path.md)`.
+
+This only applies to links between notes — `参考情報` stays URL-only.
+
 ## Execution flow
 
 This skill follows the steps below:
 
 1. Reconstruct the verbatim turn-by-turn transcript (`会話内容`) and decide on a short summary for the session
-2. Read `config.toml` and resolve `artifacts.directory`
+2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`
 3. Ensure the resolved output directory exists
 4. Build the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
 5. Save the file using the required naming rule
