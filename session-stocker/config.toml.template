@@ -1,2 +1,5 @@
 [artifacts]
 directory = ""
+# Set to true when `directory` is a folder inside an Obsidian vault.
+# The note is then created through the Obsidian CLI, which requires Obsidian to be running.
+use_obsidian_cli = false

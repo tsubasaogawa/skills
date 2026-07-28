@@ -11,7 +11,13 @@ The output directory is configured through `config.toml`, which always lives at 
 ```toml
 [artifacts]
 directory = "/path/to/your/artifacts"
+use_obsidian_cli = false
 ```
+
+`use_obsidian_cli` selects how the note is written; the content is identical either way. A missing key is treated as `false`.
+
+- `false` — the file is written directly to `artifacts.directory`.
+- `true` — `artifacts.directory` is a folder inside an Obsidian vault, and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away.
 
 ### Setup
 
@@ -46,6 +52,7 @@ Here, `<artifacts-directory>` is `artifacts.directory` from `~/.config/session-s
 - Use a short summary of the conversation in the filename
 - Spaces are allowed in the title portion and are kept as-is (not replaced with `-` or `_`)
 - Remove or replace unsafe filename characters such as `/`, `\\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`
+- With `use_obsidian_cli = true`, `#`, `^`, `[`, and `]` are dropped as well, since Obsidian rejects them in note names
 - Keep the sanitized filename readable
 
 If a file with the same name already exists, do not overwrite it. Append `-2`, `-3`, and so on instead.
@@ -118,7 +125,7 @@ If there are no relevant URLs, omit the entire `参考情報` section.
 
 #### Links to other notes
 
-This skill doesn't search for related notes on its own. But if a section ends up referencing another note that already lives in the stock directory, the link syntax depends on whether the stock is an Obsidian vault: resolve the Git repository root for `artifacts.directory` and check for a `.obsidian` directory directly under it.
+This skill doesn't search for related notes on its own. But if a section ends up referencing another note that already lives in the stock directory, the link syntax depends on whether the stock is an Obsidian vault. `use_obsidian_cli = true` already settles that; otherwise the Git repository root for `artifacts.directory` is resolved and checked for a `.obsidian` directory directly under it.
 
 - Obsidian vault detected: use wiki link syntax, `[[Note Title]]` (no `.md` extension; `[[Note Title|Display Text]]` for an alias).
 - Otherwise: use a normal Markdown relative link, `[Note Title](relative/path.md)`.
@@ -130,12 +137,26 @@ This only applies to links between notes — `参考情報` stays URL-only.
 This skill follows the steps below:
 
 1. Reconstruct the verbatim turn-by-turn transcript (`会話内容`) and decide on a short summary for the session
-2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`
-3. Ensure the resolved output directory exists
-4. Build the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
-5. Save the file using the required naming rule
-6. Tell the user the saved path and briefly summarize what was captured
-7. Ask the user whether they want a `知見` section added; if they agree, append it to the saved file
+2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
+3. Build the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
+4. Save the note — directly into the output directory, or through the Obsidian CLI when `use_obsidian_cli = true`
+5. Tell the user the saved path and briefly summarize what was captured
+6. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
+
+### Writing through the Obsidian CLI
+
+When `use_obsidian_cli = true`, the note is created by `scripts/obsidian_stock.py`, which wraps the `obsidian` CLI.
+
+The CLI takes note bodies as a `content=` argument in which `\n` and `\t` are expanded and a backslash cannot be escaped, so passing a transcript through it directly would silently corrupt Windows paths, regexes, and code containing `\n`. The script avoids that: backslashes are swapped for a private-use placeholder before the note is created, restored inside Obsidian afterwards, and the stored note is read back and compared against the original. A mismatch is reported as an error rather than passed off as a successful stock.
+
+The script also resolves which vault contains `artifacts.directory` (comparing Windows and WSL path forms), computes the vault-relative folder, applies the naming rule, and avoids overwriting an existing note.
+
+```bash
+python3 scripts/obsidian_stock.py create --title "<session summary>" --body /tmp/session-stock-body.md
+python3 scripts/obsidian_stock.py overwrite --path "<vault-relative path>" --body /tmp/session-stock-body.md
+```
+
+If Obsidian isn't running, the CLI isn't installed, or `artifacts.directory` isn't inside any known vault, the error is surfaced and nothing is written elsewhere.
 
 ## Quality bar
 

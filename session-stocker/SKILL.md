@@ -28,9 +28,15 @@ The config file always lives at `~/.config/session-stocker/config.toml`, regardl
 ```toml
 [artifacts]
 directory = "/path/to/your/artifacts"
+use_obsidian_cli = false
 ```
 
 If that file doesn't exist, stop and tell the user to create it (they can copy `config.toml.template` from the skill directory to `~/.config/session-stocker/config.toml` and fill in `artifacts.directory`) rather than guessing a directory or writing anywhere else.
+
+`use_obsidian_cli` decides **how** the note is written; the content rules are identical either way. Treat a missing key as `false`.
+
+- `false` — write the file straight to `artifacts.directory` with your normal file-writing tool.
+- `true` — `artifacts.directory` is a folder inside an Obsidian vault, so hand the write to the Obsidian CLI as described in [Stocking through the Obsidian CLI](#stocking-through-the-obsidian-cli). This matters when the vault lives somewhere the shell can't write to conveniently (for example a Windows path used from WSL), and it lets Obsidian index the note immediately.
 
 ## Output requirements
 
@@ -85,6 +91,7 @@ Examples:
 - Convert the summary into a filename-safe form.
 - Spaces are allowed in the title portion — do not replace them with `-` or `_`.
 - Remove or replace characters that are unsafe in filenames, such as `/`, `\\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`.
+- With `use_obsidian_cli = true`, also drop `#`, `^`, `[`, and `]` — Obsidian rejects them in note names.
 - Keep the summary readable after sanitizing.
 
 If a file with the same name already exists, append `-2`, `-3`, and so on instead of overwriting it.
@@ -128,27 +135,57 @@ If there are no relevant URLs, omit the entire `参考情報` section.
 
 This skill doesn't go looking for related notes to link on its own — this rule only matters if a section ends up referencing another note that already lives in the same stock directory (for example, if the user asks you to link a related past note, or `知見` naturally calls one out).
 
-When that happens, check whether the artifacts directory is inside an Obsidian vault: resolve the Git repository root for `artifacts.directory` (e.g. `git -C <artifacts-directory> rev-parse --show-toplevel`) and check whether a `.obsidian` directory exists directly under that root. If it does, the stock is Obsidian-managed.
+When that happens, decide the link style by whether the stock is Obsidian-managed:
+
+- `use_obsidian_cli = true` already answers this — the stock is Obsidian-managed, no further detection needed.
+- Otherwise, resolve the Git repository root for `artifacts.directory` (e.g. `git -C <artifacts-directory> rev-parse --show-toplevel`) and check whether a `.obsidian` directory exists directly under that root. If it does, the stock is Obsidian-managed.
+
+Then pick the syntax:
 
 - Obsidian-managed: use Obsidian's wiki link syntax, `[[Note Title]]` (no `.md` extension; use `[[Note Title|Display Text]]` if you need an alias).
 - Not Obsidian-managed (not a Git repo, or no `.obsidian` at the root): use a normal Markdown relative link, `[Note Title](relative/path.md)`.
 
 This only governs links between notes in the stock. `参考情報` stays URL-only regardless of this detection.
 
+## Stocking through the Obsidian CLI
+
+Only relevant when `use_obsidian_cli = true`. The Obsidian CLI drives a running Obsidian instance, so the note lands in the vault the same way a manually created note would. See `rules/obsidian.md` for the CLI's general syntax if you need ad-hoc commands.
+
+Do not build the `obsidian create` call by hand. The CLI expands `\n` and `\t` inside `content=` and offers no way to escape a backslash, so a transcript containing Windows paths, regexes, or code with `\n` in a string would be silently corrupted — exactly the fidelity this skill exists to protect. Use the bundled script instead, which routes the body through a placeholder, restores it inside Obsidian, and reads the note back to confirm it matches:
+
+```bash
+python3 <skill-dir>/scripts/obsidian_stock.py create \
+  --title "<session summary>" \
+  --body /tmp/session-stock-body.md
+```
+
+Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault and the vault-relative folder from `artifacts.directory`, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, and prints the vault name and note path it used. Report that path to the user.
+
+Keep the temp body file around until the session is finished with the note. To append `知見` later, edit that same local file and push the whole thing back:
+
+```bash
+python3 <skill-dir>/scripts/obsidian_stock.py overwrite \
+  --path "<vault-relative path printed by create>" \
+  --body /tmp/session-stock-body.md
+```
+
+If the script fails — Obsidian not running, CLI not installed, or `artifacts.directory` outside every known vault — surface its error message and stop. Don't fall back to writing the file somewhere else: the user pointed the config at a vault on purpose, and a note stashed in an unexpected directory is worse than no note.
+
 ## Execution steps
 
 1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
-2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
-3. Ensure the resolved artifacts directory exists. Create it if necessary.
-4. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
-5. Save the file using the required naming rule.
-6. Tell the user the saved path and briefly summarize what was captured.
-7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and append the `知見` section to the already-saved file (right after `会話内容`, before `参考情報` if present). If they decline or don't respond, leave the file as is.
+2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
+3. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
+4. Save the note:
+   - `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
+   - `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
+5. Tell the user the saved path and briefly summarize what was captured.
+6. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. If they decline or don't respond, leave the note as is.
 
 ## Quality bar
 
 Before saving, check that:
-- the file is actually written to disk
+- the file is actually written to disk (with `use_obsidian_cli = true`, the script's own round-trip check covers this — if it reports a mismatch, tell the user instead of retrying blindly)
 - the filename matches the required pattern
 - the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase
 - tool-call noise, raw command output, and system-reminder content are excluded from `会話内容`
