@@ -14,10 +14,10 @@ directory = "/path/to/your/artifacts"
 use_obsidian_cli = false
 ```
 
-`use_obsidian_cli` selects how the note is written; the content is identical either way. A missing key is treated as `false`.
+`use_obsidian_cli` selects how the note is written, and also changes what `artifacts.directory` means. The content is identical either way. A missing key is treated as `false`.
 
-- `false` — the file is written directly to `artifacts.directory`.
-- `true` — `artifacts.directory` is a folder inside an Obsidian vault, and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away.
+- `false` — `artifacts.directory` is an absolute filesystem path, and the file is written directly there.
+- `true` — `artifacts.directory` is a folder **relative to the vault root** (empty means the vault root), and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away. Which vault is used comes from `vault_name`, or, if that's empty, whichever vault Obsidian currently has focused.
 
 ### Setup
 
@@ -149,14 +149,14 @@ When `use_obsidian_cli = true`, the note is created by `scripts/obsidian_stock.p
 
 The CLI takes note bodies as a `content=` argument in which `\n` and `\t` are expanded and a backslash cannot be escaped, so passing a transcript through it directly would silently corrupt Windows paths, regexes, and code containing `\n`. The script avoids that: backslashes are swapped for a private-use placeholder before the note is created, restored inside Obsidian afterwards, and the stored note is read back and compared against the original. A mismatch is reported as an error rather than passed off as a successful stock.
 
-The script also resolves which vault contains `artifacts.directory` (comparing Windows and WSL path forms), computes the vault-relative folder, applies the naming rule, and avoids overwriting an existing note.
+The script also resolves the vault to use (`vault_name`, or whichever vault Obsidian currently has focused if that's empty), treats `artifacts.directory` as the vault-relative folder, applies the naming rule, and avoids overwriting an existing note.
 
 ```bash
 python3 scripts/obsidian_stock.py create --title "<session summary>" --body /tmp/session-stock-body.md
 python3 scripts/obsidian_stock.py overwrite --path "<vault-relative path>" --body /tmp/session-stock-body.md
 ```
 
-If Obsidian isn't running, the CLI isn't installed, or `artifacts.directory` isn't inside any known vault, the error is surfaced and nothing is written elsewhere.
+If Obsidian isn't running, the CLI isn't installed, `vault_name` doesn't match any known vault, or no vault could be detected as active, the error is surfaced and nothing is written elsewhere.
 
 ## Quality bar
 

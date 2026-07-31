@@ -15,8 +15,10 @@ Usage:
   obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM] [--vault <name>]
   obsidian_stock.py overwrite --path "<vault-relative path>" --body <file> [--config <path>] [--vault <name>]
 
-`--vault` names the vault to save into directly, skipping directory-based
-auto-detection (see `resolve_vault`). It overrides the config's `vault_name`.
+`artifacts.directory` is always a vault-relative folder path (empty means the
+vault root). `--vault` names the vault to save into directly. It overrides the
+config's `vault_name`, which itself overrides falling back to whichever vault
+Obsidian currently has focused (see `resolve_vault`).
 
 Both subcommands print `vault<TAB><name>` and `path<TAB><vault-relative path>`.
 """
@@ -64,15 +66,6 @@ def obsidian(*args: str, soft: bool = False) -> str:
     return out
 
 
-def normalize_path(raw: str) -> str:
-    """Normalize a Windows or WSL path into a comparable `c:/foo/bar` form."""
-    p = raw.strip().replace("\\", "/").rstrip("/")
-    mount = re.match(r"^/mnt/([A-Za-z])(/.*)?$", p)
-    if mount:
-        p = f"{mount.group(1)}:{mount.group(2) or ''}"
-    return p.lower()
-
-
 def read_body(path: str) -> str:
     body = pathlib.Path(path).read_text(encoding="utf-8").replace("\r\n", "\n")
     if not body.strip():
@@ -97,52 +90,45 @@ def list_vaults() -> list[tuple[str, str]]:
     return vaults
 
 
+def active_vault_name() -> str:
+    """Name of the vault Obsidian currently has focused.
+
+    Queried by omitting `vault=` from the CLI call, which makes it fall back
+    to the most recently focused vault (see `rules/obsidian.md`).
+    """
+    name = obsidian("vault", "info=name", soft=True).strip()
+    if not name:
+        die(
+            "no `vault_name` is configured and the currently active Obsidian vault "
+            "could not be determined. Is Obsidian running with a vault open?"
+        )
+    return name
+
+
 def resolve_vault(
     config_path: pathlib.Path, vault_override: str | None = None
 ) -> tuple[str, str]:
     """Return (vault name, vault-relative folder).
 
-    When a vault is named explicitly (via `vault_override` or the config's
-    `vault_name`), directory-based auto-detection is skipped entirely and
-    `artifacts.directory` is used as-is as the vault-relative folder path.
-    Otherwise, `artifacts.directory` is treated as an absolute filesystem path
-    and matched against the known vaults to infer both the vault and folder.
+    `artifacts.directory` is always a folder path relative to the vault root
+    (empty means the vault root itself) -- never an absolute filesystem path.
+    The vault comes from `vault_override` or the config's `vault_name` when
+    either is set; otherwise it falls back to whichever vault Obsidian
+    currently has focused.
     """
     if not config_path.exists():
         die(f"config not found: {config_path}")
     config = tomllib.loads(config_path.read_text(encoding="utf-8"))
     artifacts = config.get("artifacts", {})
     directory = artifacts.get("directory", "").strip()
-    vault_name = vault_override or artifacts.get("vault_name", "").strip()
+    vault_name = vault_override or artifacts.get("vault_name", "").strip() or active_vault_name()
 
-    if vault_name:
-        vaults = list_vaults()
-        if vault_name not in {name for name, _ in vaults}:
-            listing = "\n".join(f"  {n}\t{p}" for n, p in vaults) or "  (none)"
-            die(f"vault {vault_name!r} not found.\nknown vaults:\n{listing}")
-        return vault_name, directory.strip("/")
-
-    if not directory:
-        die(f"`artifacts.directory` is not set in {config_path}")
-
-    target = normalize_path(directory)
     vaults = list_vaults()
-
-    matches = [
-        (name, path)
-        for name, path in vaults
-        if target == normalize_path(path) or target.startswith(normalize_path(path) + "/")
-    ]
-    if not matches:
+    if vault_name not in {name for name, _ in vaults}:
         listing = "\n".join(f"  {n}\t{p}" for n, p in vaults) or "  (none)"
-        die(
-            f"artifacts.directory ({directory}) is not inside any known vault.\n"
-            f"known vaults:\n{listing}"
-        )
-    # Longest match wins so a nested vault beats its parent.
-    name, path = max(matches, key=lambda m: len(normalize_path(m[1])))
-    folder = target[len(normalize_path(path)) :].strip("/")
-    return name, folder
+        die(f"vault {vault_name!r} not found.\nknown vaults:\n{listing}")
+
+    return vault_name, directory.strip("/")
 
 
 def sanitize(title: str) -> str:
@@ -243,7 +229,7 @@ def main() -> None:
     create.add_argument("--config", default=str(DEFAULT_CONFIG))
     create.add_argument("--timestamp", help="override the YYYYMMDD_HHMM prefix")
     create.add_argument(
-        "--vault", help="save into this vault by name, overriding config/auto-detection"
+        "--vault", help="save into this vault by name, overriding vault_name / the active-vault fallback"
     )
     create.set_defaults(func=cmd_create)
 
@@ -252,7 +238,7 @@ def main() -> None:
     over.add_argument("--body", required=True, help="file holding the Markdown body")
     over.add_argument("--config", default=str(DEFAULT_CONFIG))
     over.add_argument(
-        "--vault", help="save into this vault by name, overriding config/auto-detection"
+        "--vault", help="save into this vault by name, overriding vault_name / the active-vault fallback"
     )
     over.set_defaults(func=cmd_overwrite)
 

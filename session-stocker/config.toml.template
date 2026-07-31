@@ -1,9 +1,11 @@
 [artifacts]
+# With use_obsidian_cli = false: an absolute filesystem path.
+# With use_obsidian_cli = true: a folder path relative to the vault root
+# (leave empty to save at the vault root).
 directory = ""
-# Set to true when `directory` is a folder inside an Obsidian vault.
+# Set to true when notes should be saved into an Obsidian vault.
 # The note is then created through the Obsidian CLI, which requires Obsidian to be running.
 use_obsidian_cli = false
-# Name an Obsidian vault to skip directory-based auto-detection and always use
-# that vault. When set, `directory` is treated as a vault-relative folder path
-# instead of an absolute filesystem path. Leave empty to auto-detect from `directory`.
+# Name the Obsidian vault to save into. Only used when use_obsidian_cli = true.
+# Leave empty to use whichever vault Obsidian currently has focused.
 vault_name = ""
