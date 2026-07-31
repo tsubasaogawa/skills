@@ -29,6 +29,7 @@ The config file always lives at `~/.config/session-stocker/config.toml`, regardl
 [artifacts]
 directory = "/path/to/your/artifacts"
 use_obsidian_cli = false
+vault_name = ""
 ```
 
 If that file doesn't exist, stop and tell the user to create it (they can copy `config.toml.template` from the skill directory to `~/.config/session-stocker/config.toml` and fill in `artifacts.directory`) rather than guessing a directory or writing anywhere else.
@@ -37,6 +38,8 @@ If that file doesn't exist, stop and tell the user to create it (they can copy `
 
 - `false` — write the file straight to `artifacts.directory` with your normal file-writing tool.
 - `true` — `artifacts.directory` is a folder inside an Obsidian vault, so hand the write to the Obsidian CLI as described in [Stocking through the Obsidian CLI](#stocking-through-the-obsidian-cli). This matters when the vault lives somewhere the shell can't write to conveniently (for example a Windows path used from WSL), and it lets Obsidian index the note immediately.
+
+`vault_name` names a vault directly instead of relying on `artifacts.directory` matching a real filesystem path. Set it when you always want the same vault regardless of where `directory` points, or when path-based auto-detection is unreliable (e.g. WSL path quirks). When it's set, `directory` is reinterpreted as a vault-relative folder (not an absolute path) — leave it empty to save at the vault root. Leave `vault_name` empty (the default) to keep the current path-matching auto-detection.
 
 ## Output requirements
 
@@ -159,7 +162,9 @@ python3 <skill-dir>/scripts/obsidian_stock.py create \
   --body /tmp/session-stock-body.md
 ```
 
-Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault and the vault-relative folder from `artifacts.directory`, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, and prints the vault name and note path it used. Report that path to the user.
+Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault and the vault-relative folder from `artifacts.directory` (or `vault_name`, see below), adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, and prints the vault name and note path it used. Report that path to the user.
+
+**Explicit vault override**: if the user's request or slash-command ARGUMENTS name an Obsidian vault to save into (e.g. "Work vault に保存して"), prioritize that vault for this run by passing `--vault "<name>"` — same pattern as `semantic-commit-helper` prioritizing a language named in ARGUMENTS. This overrides both `vault_name` and the directory auto-detection, and it applies even if `use_obsidian_cli` is `false`: naming a vault is itself a signal the user wants this note saved into Obsidian. The folder still comes from `artifacts.directory`, reinterpreted as a vault-relative path (empty means vault root).
 
 Keep the temp body file around until the session is finished with the note. To append `知見` later, edit that same local file and push the whole thing back:
 
@@ -176,9 +181,10 @@ If the script fails — Obsidian not running, CLI not installed, or `artifacts.d
 1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
 2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 3. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
-4. Save the note:
-   - `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
-   - `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
+4. Check whether the user's request or slash-command ARGUMENTS name an Obsidian vault to save into. Save the note:
+   - A vault was named explicitly: write the body to a temp file and run `scripts/obsidian_stock.py create --vault "<name>"` as described above, regardless of `use_obsidian_cli`.
+   - No vault named, `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
+   - No vault named, `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
 5. Tell the user the saved path and briefly summarize what was captured.
 6. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. If they decline or don't respond, leave the note as is.
 
