@@ -31,6 +31,13 @@ import sys
 import tomllib
 from datetime import datetime
 
+# Windows defaults stdout/stderr and subprocess pipes to the cp932 locale
+# encoding, which can't represent every character the `obsidian` CLI or this
+# script itself may emit. Force UTF-8 everywhere so the script never crashes
+# on decode/encode regardless of the platform's default encoding.
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
 DEFAULT_CONFIG = pathlib.Path.home() / ".config" / "session-stocker" / "config.toml"
 
 # Characters Obsidian and/or common filesystems reject in note names.
@@ -50,7 +57,12 @@ def obsidian(*args: str, soft: bool = False) -> str:
     """Run the CLI. With soft=True, failures return an empty string instead of exiting."""
     try:
         proc = subprocess.run(
-            ["obsidian", *args], capture_output=True, text=True, timeout=120
+            ["obsidian", *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
         )
     except FileNotFoundError:
         die("`obsidian` CLI not found in PATH. Is the Obsidian CLI installed?")
