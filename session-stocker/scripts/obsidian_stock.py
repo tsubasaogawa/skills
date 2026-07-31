@@ -12,8 +12,11 @@ back and compared against the original. The CLI is invoked through argv, never a
 shell, so quotes, backticks and `$` need no handling at all.
 
 Usage:
-  obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM]
-  obsidian_stock.py overwrite --path "<vault-relative path>" --body <file> [--config <path>]
+  obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM] [--vault <name>]
+  obsidian_stock.py overwrite --path "<vault-relative path>" --body <file> [--config <path>] [--vault <name>]
+
+`--vault` names the vault to save into directly, skipping directory-based
+auto-detection (see `resolve_vault`). It overrides the config's `vault_name`.
 
 Both subcommands print `vault<TAB><name>` and `path<TAB><vault-relative path>`.
 """
@@ -84,22 +87,46 @@ def encode_content(body: str) -> str:
     return body.replace("\\", PLACEHOLDER).replace("\t", "\\t").replace("\n", "\\n")
 
 
-def resolve_vault(config_path: pathlib.Path) -> tuple[str, str]:
-    """Return (vault name, vault-relative folder) for `artifacts.directory`."""
-    if not config_path.exists():
-        die(f"config not found: {config_path}")
-    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    directory = config.get("artifacts", {}).get("directory", "").strip()
-    if not directory:
-        die(f"`artifacts.directory` is not set in {config_path}")
-
-    target = normalize_path(directory)
+def list_vaults() -> list[tuple[str, str]]:
     vaults = []
     for line in obsidian("vaults", "verbose").splitlines():
         if "\t" not in line:
             continue
         name, path = line.split("\t", 1)
         vaults.append((name.strip(), path.strip()))
+    return vaults
+
+
+def resolve_vault(
+    config_path: pathlib.Path, vault_override: str | None = None
+) -> tuple[str, str]:
+    """Return (vault name, vault-relative folder).
+
+    When a vault is named explicitly (via `vault_override` or the config's
+    `vault_name`), directory-based auto-detection is skipped entirely and
+    `artifacts.directory` is used as-is as the vault-relative folder path.
+    Otherwise, `artifacts.directory` is treated as an absolute filesystem path
+    and matched against the known vaults to infer both the vault and folder.
+    """
+    if not config_path.exists():
+        die(f"config not found: {config_path}")
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    artifacts = config.get("artifacts", {})
+    directory = artifacts.get("directory", "").strip()
+    vault_name = vault_override or artifacts.get("vault_name", "").strip()
+
+    if vault_name:
+        vaults = list_vaults()
+        if vault_name not in {name for name, _ in vaults}:
+            listing = "\n".join(f"  {n}\t{p}" for n, p in vaults) or "  (none)"
+            die(f"vault {vault_name!r} not found.\nknown vaults:\n{listing}")
+        return vault_name, directory.strip("/")
+
+    if not directory:
+        die(f"`artifacts.directory` is not set in {config_path}")
+
+    target = normalize_path(directory)
+    vaults = list_vaults()
 
     matches = [
         (name, path)
@@ -185,7 +212,7 @@ def write_note(vault: str, note_path: str, body: str, overwrite: bool) -> None:
 
 def cmd_create(args: argparse.Namespace) -> None:
     body = read_body(args.body)
-    vault, folder = resolve_vault(pathlib.Path(args.config))
+    vault, folder = resolve_vault(pathlib.Path(args.config), args.vault)
     stamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M")
     base = f"{stamp}_{sanitize(args.title)}"
 
@@ -202,7 +229,7 @@ def cmd_create(args: argparse.Namespace) -> None:
 
 def cmd_overwrite(args: argparse.Namespace) -> None:
     body = read_body(args.body)
-    vault, _ = resolve_vault(pathlib.Path(args.config))
+    vault, _ = resolve_vault(pathlib.Path(args.config), args.vault)
     write_note(vault, args.path, body, overwrite=True)
 
 
@@ -215,12 +242,18 @@ def main() -> None:
     create.add_argument("--body", required=True, help="file holding the Markdown body")
     create.add_argument("--config", default=str(DEFAULT_CONFIG))
     create.add_argument("--timestamp", help="override the YYYYMMDD_HHMM prefix")
+    create.add_argument(
+        "--vault", help="save into this vault by name, overriding config/auto-detection"
+    )
     create.set_defaults(func=cmd_create)
 
     over = sub.add_parser("overwrite", help="replace the contents of an existing note")
     over.add_argument("--path", required=True, help="vault-relative note path")
     over.add_argument("--body", required=True, help="file holding the Markdown body")
     over.add_argument("--config", default=str(DEFAULT_CONFIG))
+    over.add_argument(
+        "--vault", help="save into this vault by name, overriding config/auto-detection"
+    )
     over.set_defaults(func=cmd_overwrite)
 
     args = parser.parse_args()
