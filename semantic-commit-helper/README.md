@@ -46,10 +46,3 @@ To use this skill with the Agent:
     > "Help me commit"
 3.  The agent will activate the `semantic-commit-helper` skill and guide you through the process.
 
-## Skill Definition
-
-The skill definition matches the prompt located in
-  - `~/.gemini/skills/semantic-commit-helper/SKILL.md` (Gemini CLI)
-  - `~/.claude/skills/semantic-commit-helper/SKILL.md` (Claude Code)
-  - ...
-

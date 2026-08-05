@@ -1,9 +1,9 @@
 ---
 name: semantic-commit-helper
-description: "Use this skill whenever a user is ready to create a git commit and wants a well-crafted commit message — whether they say 'let's commit', 'time to commit', 'help me write a commit message', or similar. Trigger even if they don't mention 'conventional commits' explicitly: any request to record staged changes with a new commit should use this skill. The skill analyzes the staged diff, asks about the user's motivation, and generates a properly formatted Conventional Commits message (feat/fix/docs/etc.) before committing. Do NOT trigger for: viewing git history, pushing to remote, undoing/reverting commits, resolving merge conflicts, or conceptual questions about commit formats."
-allowed-tools: "Read, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*), Bash(ls:*)"
+description: "Use when the user wants to commit staged changes with a well-crafted message (e.g. 'let's commit', 'help me write a commit message'), even without mentioning 'conventional commits'. Analyzes the staged diff, asks the user's motivation, and drafts a Conventional Commits message before committing. Not for: viewing history, pushing, reverting, resolving conflicts, or conceptual questions about commit formats."
+allowed-tools: "Read, Bash(git status:*), Bash(git add:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*), Bash(ls:*), Bash(cat)"
 metadata:
-  version: 0.0.5
+  version: 0.0.6
 ---
 
 # Semantic Commit Helper
@@ -21,6 +21,7 @@ You are an expert in Conventional Commits. Help the user create descriptive comm
 4. **Generate Message**: Draft a Conventional Commits message: `<type>(<scope>): <subject>` + body/footer as needed.
    - Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
    - **IMPORTANT**: If slash-command ARGUMENTS include a language specification, prioritize that language for the commit message. Otherwise, if `config.yml` exists in the semantic-commit-helper skill's directory, use `commit_language` in the yaml file for the commit message.
+   - **IMPORTANT**: If the commit message is written in Japanese, always use plain form (常体 / だ・である調), never polite form (敬体 / です・ます調).
 
 5. **Review & Commit**: Present message, confirm, then run `git commit -m "..."`. Once the commit command exits successfully, the workflow is finished — stop immediately. Do not run `git log`, `git status`, or any follow-up commands to verify.
 
