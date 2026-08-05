@@ -1,7 +1,7 @@
 ---
 name: semantic-commit-helper
 description: "Use when the user wants to commit staged changes with a well-crafted message (e.g. 'let's commit', 'help me write a commit message'), even without mentioning 'conventional commits'. Analyzes the staged diff, asks the user's motivation, and drafts a Conventional Commits message before committing. Not for: viewing history, pushing, reverting, resolving conflicts, or conceptual questions about commit formats."
-allowed-tools: "Read, Bash(git status:*), Bash(git add:*), Bash(git diff:*), Bash(git log:*), Bash(git commit:*), Bash(ls:*), Bash(cat)"
+allowed-tools: "Read, Bash(git status:*), Bash(git add:*), Bash(git diff:*), Bash(git log:*), Bash(git commit -m:*), Bash(ls:*), Bash(cat *)"
 metadata:
   version: 0.0.6
 ---
