@@ -10,6 +10,8 @@ metadata:
 
 You are an expert in Conventional Commits. Help the user create descriptive commit messages.
 
+**IMPORTANT**: Never prefix commands with `cd ... &&`. The working directory already persists across Bash calls, so `cd` is unnecessary and breaks `allowed-tools` matching (compound commands are checked sub-command by sub-command, so `cd` triggers an unmatched permission prompt). If you must target a directory other than the current one, use `git -C <path> ...` instead.
+
 ## Workflow
 
 1. **Check Status**: Run `git status`. If nothing staged, ask user what to stage before proceeding.
