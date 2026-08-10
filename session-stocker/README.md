@@ -19,6 +19,12 @@ use_obsidian_cli = false
 - `false` — `artifacts.directory` is an absolute filesystem path, and the file is written directly there.
 - `true` — `artifacts.directory` is a folder **relative to the vault root** (empty means the vault root), and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away. Which vault is used comes from `vault_name`, or, if that's empty, whichever vault Obsidian currently has focused.
 
+## Plain mode
+
+By default, the stock target is the full conversation (`会話内容`, verbatim turns from both the user and the assistant). Plain mode narrows that down to **assistant output only** — every assistant utterance in the session, in order, with user turns left out entirely.
+
+Plain mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain `plain=true` (e.g. `/session-stocker plain=true`). A natural-language request does not trigger it. When plain mode is on, the file uses `## 回答内容` instead of `## 会話内容` — the two never appear together in the same note.
+
 ### Setup
 
 ```bash
@@ -79,7 +85,17 @@ The saved Markdown must always include the following sections in this order:
 ## 会話内容
 ```
 
-`知見` is optional: it's only added after the file is saved, once the user has confirmed they want it. When present, it goes right after `会話内容`:
+In plain mode (see [Plain mode](#plain-mode)), `## 回答内容` replaces `## 会話内容` — never both:
+
+```md
+# <session-summary>
+
+## 概要
+
+## 回答内容
+```
+
+`知見` is optional: it's only added after the file is saved, once the user has confirmed they want it. When present, it goes right after `会話内容` (or `回答内容` in plain mode):
 
 ```md
 ## 知見
@@ -101,6 +117,10 @@ Summarize what the session accomplished in a short, outcome-oriented way.
 #### `会話内容`
 
 A verbatim, turn-by-turn transcript of what the user and the assistant actually said, in order — not a summary or paraphrase. Each turn is rendered as a `**User:**` or `**Assistant:**` block. Tool-call/tool-result noise, raw command output, and system-reminder content are excluded; only what the two parties actually said to each other is kept.
+
+#### `回答内容` (plain mode only)
+
+Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains every assistant utterance from the session, verbatim and in order, with user turns left out entirely. Tool-call/tool-result noise, raw command output, and system-reminder content are excluded, same as `会話内容`. Consecutive utterances are separated (e.g. a `**Assistant:**` label per turn, or a `---` divider) so the boundaries stay legible.
 
 #### `知見`
 
@@ -136,12 +156,13 @@ This only applies to links between notes — `参考情報` stays URL-only.
 
 This skill follows the steps below:
 
-1. Reconstruct the verbatim turn-by-turn transcript (`会話内容`) and decide on a short summary for the session
-2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
-3. Build the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
-4. Save the note — directly into the output directory, or through the Obsidian CLI when `use_obsidian_cli = true`
-5. Tell the user the saved path and briefly summarize what was captured
-6. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
+1. Check whether the invoking slash-command ARGUMENTS literally contain `plain=true`; if so, this run is in [plain mode](#plain-mode)
+2. Reconstruct the content section — the verbatim turn-by-turn transcript (`会話内容`) normally, or every assistant utterance with user turns left out (`回答内容`) in plain mode — and decide on a short summary for the session
+3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
+4. Build the Markdown content with `概要` and either `会話内容` or `回答内容` (whichever mode applies), adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
+5. Save the note — directly into the output directory, or through the Obsidian CLI when `use_obsidian_cli = true`
+6. Tell the user the saved path and briefly summarize what was captured
+7. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
 
 ### Writing through the Obsidian CLI
 
@@ -164,7 +185,9 @@ Before saving, make sure at least the following are true:
 
 - the file is actually written to disk
 - the filename follows the required pattern
+- exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript, not a summary or paraphrase, and excludes tool-call noise
+- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim, and excludes tool-call noise
 - the `知見` section is only present when the user explicitly asked for it
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only

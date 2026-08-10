@@ -41,6 +41,14 @@ If that file doesn't exist, stop and tell the user to create it (they can copy `
 
 `vault_name` names which vault to save into when `use_obsidian_cli = true`. Leave it empty to use whichever vault Obsidian currently has focused — the bundled script asks the CLI for the active vault when no name is configured. Set it explicitly when you want a specific vault regardless of what's currently open in Obsidian.
 
+## Plain mode
+
+By default, the stock target is the full conversation (`会話内容`, verbatim turns from both the user and the assistant). Plain mode narrows that down to **assistant output only** — every assistant utterance in the session, in order, with user turns left out entirely.
+
+Plain mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain `plain=true` (e.g. `/session-stocker plain=true`). A natural-language request like「plain で保存して」does not trigger it — only the explicit ARGUMENTS flag does. This check is independent of the vault-name override described below; both can apply at once.
+
+When plain mode is on, the file uses `## 回答内容` instead of `## 会話内容` (see Output requirements and Writing guidance) — the two never appear together in the same note.
+
 ## Output requirements
 
 Create one Markdown file at:
@@ -59,7 +67,17 @@ The file must always contain these sections in this order:
 ## 会話内容
 ```
 
-`知見` is optional. Only add it after saving, once the user has confirmed they want it (see Execution steps). When present, it goes right after `会話内容`:
+In plain mode (see [Plain mode](#plain-mode)), use `## 回答内容` in place of `## 会話内容` — never both:
+
+```md
+# <session-summary>
+
+## 概要
+
+## 回答内容
+```
+
+`知見` is optional. Only add it after saving, once the user has confirmed they want it (see Execution steps). When present, it goes right after `会話内容` (or `回答内容` in plain mode):
 
 ```md
 ## 知見
@@ -113,6 +131,14 @@ This is the core of the artifact: a verbatim, turn-by-turn transcript of what th
 - Use the actual message text the user and assistant exchanged, not a paraphrase.
 - Leave out tool-call/tool-result noise (function calls, raw command output, intermediate tool payloads) — keep only what the user and the assistant actually said to each other. Local-command output and system-reminder tags are not part of the conversation and should also be left out.
 - If the session is extremely long, it's fine to include the whole thing; do not truncate for length unless the user asks you to.
+
+#### `回答内容` (plain mode only)
+
+Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains every assistant utterance from the session, in order, with user turns left out entirely.
+
+- Use the actual assistant message text, verbatim — do not summarize or paraphrase, same as `会話内容`.
+- Leave out tool-call/tool-result noise, raw command output, and system-reminder content, same exclusion rule as `会話内容`.
+- Separate consecutive assistant utterances so the boundaries stay legible when read back — a `**Assistant:**` label per turn or a `---` divider both work. Don't use `**User:**` labels; there's nothing to attribute to the user in this section.
 
 #### `知見`
 
@@ -178,23 +204,28 @@ If the script fails — Obsidian not running, CLI not installed, `vault_name` no
 
 ## Execution steps
 
-1. Review the current conversation and reconstruct the verbatim turn-by-turn transcript (`会話内容`), and generate the session summary.
-2. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
-3. Create the Markdown content with `概要` and `会話内容`, adding `参考情報` only when relevant URLs were actually mentioned. Do not include `知見` yet.
-4. Check whether the user's request or slash-command ARGUMENTS name an Obsidian vault to save into. Save the note:
+1. Check whether the slash-command ARGUMENTS that invoked this skill literally contain `plain=true`. If so, this run is in [plain mode](#plain-mode).
+2. Review the current conversation and reconstruct the content section:
+   - Not in plain mode: the verbatim turn-by-turn transcript (`会話内容`).
+   - In plain mode: every assistant utterance, in order, with user turns left out (`回答内容`).
+   Generate the session summary either way.
+3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
+5. Check whether the user's request or slash-command ARGUMENTS name an Obsidian vault to save into. Save the note:
    - A vault was named explicitly: write the body to a temp file and run `scripts/obsidian_stock.py create --vault "<name>"` as described above, regardless of `use_obsidian_cli`.
    - No vault named, `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
    - No vault named, `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
-5. Tell the user the saved path and briefly summarize what was captured.
-6. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. If they decline or don't respond, leave the note as is.
+6. Tell the user the saved path and briefly summarize what was captured.
+7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容` or `回答内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. If they decline or don't respond, leave the note as is.
 
 ## Quality bar
 
 Before saving, check that:
 - the file is actually written to disk (with `use_obsidian_cli = true`, the script's own round-trip check covers this — if it reports a mismatch, tell the user instead of retrying blindly)
 - the filename matches the required pattern
+- exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase
-- tool-call noise, raw command output, and system-reminder content are excluded from `会話内容`
+- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim
+- tool-call noise, raw command output, and system-reminder content are excluded from `会話内容` / `回答内容`
 - the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only
