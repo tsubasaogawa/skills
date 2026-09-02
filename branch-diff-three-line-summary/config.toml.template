@@ -1,0 +1,6 @@
+[output]
+# Maximum characters per bullet body (excluding the leading "- ").
+# Full-width and half-width characters both count as one.
+max_line_length = 100
+# Extra instruction about writing style. Leave empty to use only the built-in rules.
+style = "日本語の場合は常体 (だ・である調) を使う。"
