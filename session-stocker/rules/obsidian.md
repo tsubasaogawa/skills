@@ -2,6 +2,10 @@
 
 Use the `obsidian` CLI to interact with a running Obsidian instance. Requires Obsidian to be open.
 
+Keep arguments small. A multi-kilobyte parameter value (a note body via `content=`, for example) has been
+observed to crash Obsidian's main process, so write file contents to disk directly instead of passing them
+to the CLI.
+
 ## Command reference
 
 Run `obsidian help` to see all available commands. Full docs: https://help.obsidian.md/cli

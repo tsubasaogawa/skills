@@ -175,24 +175,24 @@ This skill follows the steps below:
 2. Reconstruct the content section — the turn-by-turn transcript (`会話内容`) normally, or every assistant utterance with user turns left out (`回答内容`) in plain mode — verbatim by default, or condensed into a summary when simplify mode is on — and decide on a short summary for the session
 3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
 4. Build the Markdown content with `概要` and either `会話内容` or `回答内容` (whichever mode applies), adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
-5. Save the note — directly into the output directory, or through the Obsidian CLI when `use_obsidian_cli = true`
+5. Save the note — directly into the output directory, or into the resolved vault directory when `use_obsidian_cli = true`
 6. Tell the user the saved path and briefly summarize what was captured
 7. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
 
-### Writing through the Obsidian CLI
+### Writing into an Obsidian vault
 
-When `use_obsidian_cli = true`, the note is created by `scripts/obsidian_stock.py`, which wraps the `obsidian` CLI.
+When `use_obsidian_cli = true`, the note is created by `scripts/obsidian_stock.py`, which resolves the vault by name and writes the file into the vault directory itself.
 
-The CLI takes note bodies as a `content=` argument in which `\n` and `\t` are expanded and a backslash cannot be escaped, so passing a transcript through it directly would silently corrupt Windows paths, regexes, and code containing `\n`. The script avoids that: backslashes are swapped for a private-use placeholder before the note is created, restored inside Obsidian afterwards, and the stored note is read back and compared against the original. A mismatch is reported as an error rather than passed off as a successful stock.
+The note body is deliberately never handed to the `obsidian` CLI. Its `content=` parameter expands `\n` and `\t` and cannot escape a backslash, so a transcript would be silently corrupted, and a multi-kilobyte argument has been observed to crash Obsidian's main process. Writing the file directly sidesteps both: no escaping happens, so nothing can be corrupted, and the script reads the file back and compares it byte for byte before reporting success. The CLI is used only for short lookups and for asking a running Obsidian to open the finished note.
 
-The script also resolves the vault to use (`vault_name`, or whichever vault Obsidian currently has focused if that's empty), treats `artifacts.directory` as the vault-relative folder, applies the naming rule, and avoids overwriting an existing note.
+The script also resolves the vault to use (`vault_name`, or whichever vault Obsidian currently has focused if that's empty), treats `artifacts.directory` as the vault-relative folder, applies the naming rule, and avoids overwriting an existing note. A Windows vault path is translated for WSL via `wslpath`, so the same config works from either side.
 
 ```bash
 python3 scripts/obsidian_stock.py create --title "<session summary>" --body /tmp/session-stock-body.md
 python3 scripts/obsidian_stock.py overwrite --path "<vault-relative path>" --body /tmp/session-stock-body.md
 ```
 
-If Obsidian isn't running, the CLI isn't installed, `vault_name` doesn't match any known vault, or no vault could be detected as active, the error is surfaced and nothing is written elsewhere.
+Obsidian does not need to be running: the vault registry is read from `obsidian.json` when the CLI does not answer, and a closed Obsidian indexes the note through its file watcher at next start. Only an unconfigured vault name needs a running instance, since "the currently focused vault" cannot be resolved otherwise. If `vault_name` doesn't match any known vault, the vault path isn't readable, or no vault could be detected as active, the error is surfaced and nothing is written elsewhere.
 
 ## Quality bar
 

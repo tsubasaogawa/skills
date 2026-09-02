@@ -1,8 +1,7 @@
 ---
-name: session-stocker
 description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
+name: session-stocker
 ---
-
 # Session Stock
 
 Turn the current session into a reusable Markdown artifact and save it to the directory configured by `config.toml`.
@@ -37,9 +36,9 @@ If that file doesn't exist, stop and tell the user to create it (they can copy `
 `use_obsidian_cli` decides **how** the note is written, and also changes what `artifacts.directory` means. The content rules are identical either way. Treat a missing key as `false`.
 
 - `false` — `artifacts.directory` is an absolute filesystem path. Write the file straight there with your normal file-writing tool.
-- `true` — `artifacts.directory` is a folder **relative to the vault root** (leave it empty to save at the vault root), and the write is handed to the Obsidian CLI as described in [Stocking through the Obsidian CLI](#stocking-through-the-obsidian-cli). This matters when the vault lives somewhere the shell can't write to conveniently (for example a Windows path used from WSL), and it lets Obsidian index the note immediately.
+- `true` — `artifacts.directory` is a folder **relative to the vault root** (leave it empty to save at the vault root), and the write goes through the bundled script as described in [Stocking into an Obsidian vault](#stocking-into-an-obsidian-vault). Use this when the note belongs in a vault whose filesystem location you should not have to know or hardcode: the script resolves the vault by name, so the same config works from WSL against a Windows-side vault.
 
-`vault_name` names which vault to save into when `use_obsidian_cli = true`. Leave it empty to use whichever vault Obsidian currently has focused — the bundled script asks the CLI for the active vault when no name is configured. Set it explicitly when you want a specific vault regardless of what's currently open in Obsidian.
+`vault_name` names which vault to save into when `use_obsidian_cli = true`. Leave it empty to use whichever vault Obsidian currently has focused — the bundled script asks the CLI for the active vault when no name is configured, which is the one case that needs Obsidian to be running. Set it explicitly when you want a specific vault regardless of what's currently open in Obsidian, or when Obsidian may be closed.
 
 ## Plain mode
 
@@ -193,11 +192,11 @@ Then pick the syntax:
 
 This only governs links between notes in the stock. `参考情報` stays URL-only regardless of this detection.
 
-## Stocking through the Obsidian CLI
+## Stocking into an Obsidian vault
 
-Only relevant when `use_obsidian_cli = true`. The Obsidian CLI drives a running Obsidian instance, so the note lands in the vault the same way a manually created note would. See `rules/obsidian.md` for the CLI's general syntax if you need ad-hoc commands.
+Only relevant when `use_obsidian_cli = true`, or when a vault is named explicitly. See `rules/obsidian.md` for the CLI's general syntax if you need ad-hoc commands.
 
-Do not build the `obsidian create` call by hand. The CLI expands `\n` and `\t` inside `content=` and offers no way to escape a backslash, so a transcript containing Windows paths, regexes, or code with `\n` in a string would be silently corrupted — exactly the fidelity this skill exists to protect. Use the bundled script instead, which routes the body through a placeholder, restores it inside Obsidian, and reads the note back to confirm it matches:
+Never write the note with `obsidian create` yourself. The CLI expands `\n` and `\t` inside `content=` and offers no way to escape a backslash, so a transcript containing Windows paths, regexes, or code with `\n` in a string would be silently corrupted — exactly the fidelity this skill exists to protect. Worse, a multi-kilobyte `content=` argument has been observed to crash Obsidian's main process outright. Use the bundled script instead: it resolves the vault's filesystem path and writes the file directly, so the body never passes through the CLI and nothing is escaped:
 
 ```bash
 python3 <skill-dir>/scripts/obsidian_stock.py create \
@@ -205,7 +204,9 @@ python3 <skill-dir>/scripts/obsidian_stock.py create \
   --body /tmp/session-stock-body.md
 ```
 
-Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault (from `vault_name`, or the currently focused vault if that's empty), treats `artifacts.directory` as the vault-relative folder, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, and prints the vault name and note path it used. Report that path to the user.
+Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault (from `vault_name`, or the currently focused vault if that's empty), treats `artifacts.directory` as the vault-relative folder, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, verifies the file on disk byte for byte, and prints the vault name and note path it used. Report that path to the user.
+
+Obsidian does not need to be running. The script reads the vault registry from `obsidian.json` when the CLI does not answer, and a running Obsidian is asked to open the new note only as a best-effort nicety — if it is closed, its file watcher indexes the note at next start. The one exception is an unnamed vault: resolving "whichever vault is currently focused" requires a running Obsidian.
 
 **Explicit vault override**: if the user's request or slash-command ARGUMENTS name an Obsidian vault to save into (e.g. "Work vault に保存して"), prioritize that vault for this run by passing `--vault "<name>"` — same pattern as `semantic-commit-helper` prioritizing a language named in ARGUMENTS. This overrides `vault_name` (and the fallback to whichever vault is currently focused), and it applies even if `use_obsidian_cli` is `false`: naming a vault is itself a signal the user wants this note saved into Obsidian. The folder still comes from `artifacts.directory` as a vault-relative path (empty means vault root).
 
@@ -217,7 +218,7 @@ python3 <skill-dir>/scripts/obsidian_stock.py overwrite \
   --body /tmp/session-stock-body.md
 ```
 
-If the script fails — Obsidian not running, CLI not installed, `vault_name` not among the known vaults, or no vault could be detected as active — surface its error message and stop. Don't fall back to writing the file somewhere else: the user pointed the config at a vault on purpose, and a note stashed in an unexpected directory is worse than no note.
+If the script fails — `vault_name` not among the known vaults, the vault path not readable, or no vault could be detected as active — surface its error message and stop. Don't fall back to writing the file somewhere else: the user pointed the config at a vault on purpose, and a note stashed in an unexpected directory is worse than no note.
 
 ## Execution steps
 
@@ -240,6 +241,7 @@ If the script fails — Obsidian not running, CLI not installed, `vault_name` no
 
 Before saving, check that:
 - the file is actually written to disk (with `use_obsidian_cli = true`, the script's own round-trip check covers this — if it reports a mismatch, tell the user instead of retrying blindly)
+- the note body was never passed to the `obsidian` CLI as an argument
 - the filename matches the required pattern
 - exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead

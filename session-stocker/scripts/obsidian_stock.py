@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Create or overwrite a note in an Obsidian vault through the `obsidian` CLI.
+"""Create or overwrite a note in an Obsidian vault by writing to the vault directory.
 
-Why this script exists: the CLI takes note bodies as a `content=` argument in which
-`\\n` and `\\t` are expanded into newline and tab, and there is no way to escape a
-backslash. Passing a transcript straight through would silently corrupt anything
-containing a literal backslash (Windows paths, regexes, code with `\\n` in strings).
+Why this script exists: the note body must reach the vault losslessly, and the
+`obsidian` CLI cannot carry it. Its `content=` parameter expands `\\n` and `\\t`
+and offers no way to escape a backslash, and pushing a multi-kilobyte argument
+through the CLI has been observed to crash Obsidian's main process outright
+(a malformed IPC payload triggers an unguarded `JSON.parse`). So the body is
+never handed to the CLI: this script resolves the vault's filesystem path and
+writes the file itself. Nothing is escaped, so nothing can be corrupted.
 
-To stay lossless, the body's backslashes are swapped for a private-use placeholder
-before `create`, then restored inside Obsidian via `eval`, and the result is read
-back and compared against the original. The CLI is invoked through argv, never a
-shell, so quotes, backticks and `$` need no handling at all.
+The CLI is still used, with small arguments only, to look up the vault registry
+and to nudge a running Obsidian into opening the new note. Both are optional:
+when the CLI is unavailable or Obsidian is not running, the registry is read
+from `obsidian.json` and the note is picked up by Obsidian's file watcher the
+next time it starts.
 
 Usage:
   obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM] [--vault <name>]
@@ -24,6 +28,8 @@ Both subcommands print `vault<TAB><name>` and `path<TAB><vault-relative path>`.
 """
 
 import argparse
+import json
+import os
 import pathlib
 import re
 import subprocess
@@ -43,9 +49,10 @@ DEFAULT_CONFIG = pathlib.Path.home() / ".config" / "session-stocker" / "config.t
 # Characters Obsidian and/or common filesystems reject in note names.
 UNSAFE_CHARS = r'[\\/:*?"<>|#^\[\]]'
 
-# Private-use codepoint that stands in for a backslash while the body travels
-# through the CLI's `content=` escaping.
-PLACEHOLDER = "\ue000"
+# Obsidian dies on oversized CLI arguments, so refuse to send one. Every call
+# this script makes is a short lookup; anything larger is a bug worth failing on
+# rather than risking the user's editor.
+MAX_ARG_BYTES = 4096
 
 
 def die(message: str) -> None:
@@ -55,6 +62,13 @@ def die(message: str) -> None:
 
 def obsidian(*args: str, soft: bool = False) -> str:
     """Run the CLI. With soft=True, failures return an empty string instead of exiting."""
+    for arg in args:
+        if len(arg.encode("utf-8")) > MAX_ARG_BYTES:
+            die(
+                f"refusing to pass a {len(arg.encode('utf-8'))}-byte argument to the "
+                f"`obsidian` CLI (limit {MAX_ARG_BYTES}): large arguments can crash Obsidian. "
+                "Note bodies must be written to the vault directly, never through the CLI."
+            )
     try:
         proc = subprocess.run(
             ["obsidian", *args],
@@ -65,8 +79,12 @@ def obsidian(*args: str, soft: bool = False) -> str:
             timeout=120,
         )
     except FileNotFoundError:
+        if soft:
+            return ""
         die("`obsidian` CLI not found in PATH. Is the Obsidian CLI installed?")
     except subprocess.TimeoutExpired:
+        if soft:
+            return ""
         die("`obsidian` CLI timed out. Is Obsidian running?")
     out = proc.stdout.strip()
     failed = proc.returncode != 0 or out.startswith("Error:")
@@ -82,24 +100,69 @@ def read_body(path: str) -> str:
     body = pathlib.Path(path).read_text(encoding="utf-8").replace("\r\n", "\n")
     if not body.strip():
         die(f"body file is empty: {path}")
-    if PLACEHOLDER in body:
-        die("body contains U+E000, which this script reserves as an escape placeholder")
     return body
 
 
-def encode_content(body: str) -> str:
-    """Make the body survive `content=`: no backslashes, real newlines/tabs escaped."""
-    return body.replace("\\", PLACEHOLDER).replace("\t", "\\t").replace("\n", "\\n")
+def to_local_path(raw: str) -> pathlib.Path:
+    """Translate a vault path from the registry into one this process can write to.
+
+    Obsidian may report a Windows path (`C:\\Users\\...`) while this script runs
+    under WSL, where the same directory is reachable via `/mnt/c/...`.
+    """
+    if re.match(r"^[A-Za-z]:[\\/]", raw):
+        try:
+            converted = subprocess.run(
+                ["wslpath", "-u", raw],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            converted = None
+        if converted is not None and converted.returncode == 0 and converted.stdout.strip():
+            return pathlib.Path(converted.stdout.strip())
+    return pathlib.Path(raw)
+
+
+def registry_files() -> list[pathlib.Path]:
+    """Candidate locations of Obsidian's `obsidian.json` vault registry."""
+    candidates = [pathlib.Path.home() / ".config" / "obsidian" / "obsidian.json"]
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        candidates.append(pathlib.Path(appdata) / "obsidian" / "obsidian.json")
+    candidates.extend(pathlib.Path("/mnt/c/Users").glob("*/AppData/Roaming/obsidian/obsidian.json"))
+    return [c for c in candidates if c.is_file()]
+
+
+def vaults_from_registry() -> list[tuple[str, str]]:
+    """Read the vault registry from disk, so a stopped Obsidian is not fatal.
+
+    The registry stores paths but no names; Obsidian names a vault after its
+    directory, so the basename is the name.
+    """
+    vaults = []
+    for registry in registry_files():
+        try:
+            data = json.loads(registry.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for entry in data.get("vaults", {}).values():
+            path = entry.get("path", "").strip()
+            if path:
+                vaults.append((pathlib.PurePath(path.replace("\\", "/")).name, path))
+    return vaults
 
 
 def list_vaults() -> list[tuple[str, str]]:
+    """Known vaults as (name, path), from the CLI when it answers, else from disk."""
     vaults = []
-    for line in obsidian("vaults", "verbose").splitlines():
+    for line in obsidian("vaults", "verbose", soft=True).splitlines():
         if "\t" not in line:
             continue
         name, path = line.split("\t", 1)
         vaults.append((name.strip(), path.strip()))
-    return vaults
+    return vaults or vaults_from_registry()
 
 
 def active_vault_name() -> str:
@@ -112,15 +175,16 @@ def active_vault_name() -> str:
     if not name:
         die(
             "no `vault_name` is configured and the currently active Obsidian vault "
-            "could not be determined. Is Obsidian running with a vault open?"
+            "could not be determined. Either start Obsidian with a vault open, set "
+            "`vault_name` in the config, or pass --vault."
         )
     return name
 
 
 def resolve_vault(
     config_path: pathlib.Path, vault_override: str | None = None
-) -> tuple[str, str]:
-    """Return (vault name, vault-relative folder).
+) -> tuple[str, pathlib.Path, str]:
+    """Return (vault name, vault directory, vault-relative folder).
 
     `artifacts.directory` is always a folder path relative to the vault root
     (empty means the vault root itself) -- never an absolute filesystem path.
@@ -136,11 +200,16 @@ def resolve_vault(
     vault_name = vault_override or artifacts.get("vault_name", "").strip() or active_vault_name()
 
     vaults = list_vaults()
-    if vault_name not in {name for name, _ in vaults}:
+    match = next((path for name, path in vaults if name == vault_name), None)
+    if match is None:
         listing = "\n".join(f"  {n}\t{p}" for n, p in vaults) or "  (none)"
         die(f"vault {vault_name!r} not found.\nknown vaults:\n{listing}")
 
-    return vault_name, directory.strip("/")
+    vault_dir = to_local_path(match)
+    if not vault_dir.is_dir():
+        die(f"vault {vault_name!r} resolves to {vault_dir}, which is not a readable directory")
+
+    return vault_name, vault_dir, directory.strip("/")
 
 
 def sanitize(title: str) -> str:
@@ -152,83 +221,59 @@ def sanitize(title: str) -> str:
     return cleaned
 
 
-def existing_names(vault: str, folder: str) -> set[str]:
-    args = [f"vault={vault}", "files"]
-    if folder:
-        args.append(f"folder={folder}")
-    listing = obsidian(*args, soft=True)
-    return {line.strip().rsplit("/", 1)[-1] for line in listing.splitlines() if line.strip()}
+def reveal(vault: str, note_path: str) -> None:
+    """Best-effort nudge so a running Obsidian opens the note immediately.
 
-
-def restore_backslashes(vault: str, note_path: str) -> None:
-    """Swap the placeholder back to a real backslash from inside Obsidian.
-
-    The CLI does not reliably echo an async eval's return value, so success is not
-    judged here — `verify()` compares the stored note against the body instead.
+    Obsidian's file watcher indexes the note either way, so a failure here says
+    nothing about whether the write succeeded and must never be fatal.
     """
-    js = (
-        "(async()=>{"
-        f"const f=app.vault.getAbstractFileByPath({js_str(note_path)});"
-        "if(!f)return 'missing';"
-        "const s=await app.vault.read(f);"
-        "await app.vault.modify(f,s.split(String.fromCharCode(57344))"
-        ".join(String.fromCharCode(92)));"
-        "return 'ok';})()"
-    )
-    obsidian(f"vault={vault}", "eval", f"code={js}", soft=True)
+    obsidian(f"vault={vault}", "open", f"path={note_path}", soft=True)
 
 
-def js_str(value: str) -> str:
-    """JS string literal built without backslashes, which `content=`/`code=` would eat."""
-    return "String.fromCharCode(" + ",".join(str(ord(c)) for c in value) + ")"
+def write_note(vault: str, vault_dir: pathlib.Path, note_path: str, body: str, overwrite: bool) -> None:
+    target = vault_dir / note_path
+    if target.exists() and not overwrite:
+        die(f"note already exists: {target}")
+    if overwrite and not target.exists():
+        die(f"note to overwrite does not exist: {target}")
 
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(body)
 
-def matches(vault: str, note_path: str, body: str) -> bool:
-    stored = obsidian(f"vault={vault}", "read", f"path={note_path}", soft=True)
-    return stored.replace("\r\n", "\n").strip() == body.strip()
-
-
-def write_note(vault: str, note_path: str, body: str, overwrite: bool) -> None:
-    args = [f"vault={vault}", "create", f"path={note_path}", f"content={encode_content(body)}"]
-    if overwrite:
-        args.append("overwrite")
-    obsidian(*args)
-
-    if "\\" in body:
-        for _ in range(2):
-            restore_backslashes(vault, note_path)
-            if matches(vault, note_path, body):
-                break
-    if not matches(vault, note_path, body):
+    stored = target.read_text(encoding="utf-8")
+    if stored != body:
         die(
-            f"round-trip check failed for {note_path}: the stored note differs from the "
-            "body that was sent. Inspect the note in Obsidian before trusting it."
+            f"round-trip check failed for {target}: the file on disk differs from the "
+            "body that was written."
         )
+
+    reveal(vault, note_path)
     print(f"vault\t{vault}")
     print(f"path\t{note_path}")
 
 
 def cmd_create(args: argparse.Namespace) -> None:
     body = read_body(args.body)
-    vault, folder = resolve_vault(pathlib.Path(args.config), args.vault)
+    vault, vault_dir, folder = resolve_vault(pathlib.Path(args.config), args.vault)
     stamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M")
     base = f"{stamp}_{sanitize(args.title)}"
 
-    taken = existing_names(vault, folder)
+    target_dir = vault_dir / folder if folder else vault_dir
     name = f"{base}.md"
     suffix = 2
-    while name in taken:
+    while (target_dir / name).exists():
         name = f"{base}-{suffix}.md"
         suffix += 1
 
     prefix = f"{folder}/" if folder else ""
-    write_note(vault, f"{prefix}{name}", body, overwrite=False)
+    write_note(vault, vault_dir, f"{prefix}{name}", body, overwrite=False)
 
 
 def cmd_overwrite(args: argparse.Namespace) -> None:
     body = read_body(args.body)
-    vault, _ = resolve_vault(pathlib.Path(args.config), args.vault)
-    write_note(vault, args.path, body, overwrite=True)
+    vault, vault_dir, _ = resolve_vault(pathlib.Path(args.config), args.vault)
+    write_note(vault, vault_dir, args.path.strip("/"), body, overwrite=True)
 
 
 def main() -> None:
