@@ -8,7 +8,7 @@ Turn the current session into a reusable Markdown artifact and save it to the di
 
 ## Goal
 
-Capture the conversation in a form the user can revisit later. Preserve the actual exchange verbatim rather than compressing it into a summary — durable takeaways (`知見`) are an optional add-on, not the primary content. Pass `simplify=true` in the invoking ARGUMENTS to condense the transcript into a summary instead; this is off by default (see [Simplify mode](#simplify-mode)).
+Capture the conversation in a form the user can revisit later. Preserve the actual exchange verbatim rather than compressing it into a summary — durable takeaways (`知見`) are an optional add-on, not the primary content. Pass `--simplify` in the invoking ARGUMENTS to condense the transcript into a summary instead; this is off by default (see [Simplify mode](#simplify-mode)).
 
 ## When to use this skill
 
@@ -44,7 +44,7 @@ If that file doesn't exist, stop and tell the user to create it (they can copy `
 
 By default, the stock target is the full conversation (`会話内容`, verbatim turns from both the user and the assistant). Plain mode narrows that down to **assistant output only** — every assistant utterance in the session, in order, with user turns left out entirely.
 
-Plain mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain `plain=true` (e.g. `/session-stocker plain=true`). A natural-language request like「plain で保存して」does not trigger it — only the explicit ARGUMENTS flag does. This check is independent of the vault-name override described below; both can apply at once.
+Plain mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--plain` (e.g. `/session-stocker --plain`). It takes no value — `--plain` alone turns it on, and its absence leaves it off. A natural-language request like「plain で保存して」does not trigger it — only the explicit ARGUMENTS flag does. This check is independent of the vault-name override described below; both can apply at once.
 
 When plain mode is on, the file uses `## 回答内容` instead of `## 会話内容` (see Output requirements and Writing guidance) — the two never appear together in the same note.
 
@@ -52,16 +52,16 @@ When plain mode is on, the file uses `## 回答内容` instead of `## 会話内�
 
 By default, `会話内容` (or `回答内容` in plain mode) is a verbatim, turn-by-turn transcript. Simplify mode replaces that with a condensed summary of what was discussed/done instead — still faithful to what happened, but not word-for-word.
 
-Simplify mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain `simplify=true` (e.g. `/session-stocker simplify=true`). A natural-language request like「内容を要約して保存して」does not trigger it — only the explicit ARGUMENTS flag does. Default is `simplify=false` (verbatim), matching the skill's existing behavior.
+Simplify mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--simplify` (e.g. `/session-stocker --simplify`). It takes no value — `--simplify` alone turns it on, and its absence leaves it off. A natural-language request like「内容を要約して保存して」does not trigger it — only the explicit ARGUMENTS flag does. Without the flag the transcript stays verbatim, matching the skill's existing behavior.
 
 Simplify mode is independent of [Plain mode](#plain-mode) — the two combine freely:
 
-| `plain` | `simplify` | Section | Content |
+| `--plain` | `--simplify` | Section | Content |
 |---|---|---|---|
-| false (default) | false (default) | `会話内容` | verbatim, both parties |
-| false | true | `会話内容` | summarized, both parties |
-| true | false | `回答内容` | verbatim, assistant only |
-| true | true | `回答内容` | summarized, assistant only |
+| absent (default) | absent (default) | `会話内容` | verbatim, both parties |
+| absent | present | `会話内容` | summarized, both parties |
+| present | absent | `回答内容` | verbatim, assistant only |
+| present | present | `回答内容` | summarized, assistant only |
 
 ## Output requirements
 
@@ -170,7 +170,7 @@ This is the core of the artifact: a verbatim, turn-by-turn transcript of what th
 - Use the actual message text the user and assistant exchanged, not a paraphrase.
 - Leave out tool-call/tool-result noise (function calls, raw command output, intermediate tool payloads) — keep only what the user and the assistant actually said to each other. Local-command output and system-reminder tags are not part of the conversation and should also be left out.
 - If the session is extremely long, it's fine to include the whole thing; do not truncate for length unless the user asks you to.
-- When [simplify mode](#simplify-mode) is on (`simplify=true`), write a condensed summary of the exchange instead — cover the key turns, decisions, and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
+- When [simplify mode](#simplify-mode) is on (`--simplify`), write a condensed summary of the exchange instead — cover the key turns, decisions, and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
 
 #### `回答内容` (plain mode only)
 
@@ -179,7 +179,7 @@ Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains ev
 - Use the actual assistant message text, verbatim — do not summarize or paraphrase, same as `会話内容`.
 - Leave out tool-call/tool-result noise, raw command output, and system-reminder content, same exclusion rule as `会話内容`.
 - Separate consecutive assistant utterances so the boundaries stay legible when read back — a `**Assistant:**` label per turn or a `---` divider both work. Don't use `**User:**` labels; there's nothing to attribute to the user in this section.
-- When [simplify mode](#simplify-mode) is on (`simplify=true`), write a condensed summary of the assistant's output instead — cover the key points and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
+- When [simplify mode](#simplify-mode) is on (`--simplify`), write a condensed summary of the assistant's output instead — cover the key points and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
 
 #### `知見`
 
@@ -247,7 +247,7 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
 
 ## Execution steps
 
-1. Check whether the slash-command ARGUMENTS that invoked this skill literally contain `plain=true`. If so, this run is in [plain mode](#plain-mode). Separately, check whether they literally contain `simplify=true`. If so, this run is in [simplify mode](#simplify-mode); otherwise simplify is off (default).
+1. Check whether the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--plain`. If so, this run is in [plain mode](#plain-mode). Separately, check whether they literally contain the bare flag `--simplify`. If so, this run is in [simplify mode](#simplify-mode); otherwise simplify is off (default).
 2. Review the current conversation and reconstruct the content section:
    - Not in plain mode: the transcript (`会話内容`).
    - In plain mode: every assistant utterance, in order, with user turns left out (`回答内容`).
@@ -269,9 +269,9 @@ Before saving, check that:
 - the note body was never passed to the `obsidian` CLI as an argument
 - the filename matches the required pattern
 - the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
-- exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
-- the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
-- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
+- exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `--plain` was in the invoking ARGUMENTS — never both
+- the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
+- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
 - tool-call noise, raw command output, and system-reminder content are excluded from `会話内容` / `回答内容`
 - the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
 - the `参考情報` section appears only when relevant URLs exist
