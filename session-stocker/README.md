@@ -90,9 +90,12 @@ Examples:
 
 ## Markdown output format
 
-The saved Markdown must always include the following sections in this order:
+The saved Markdown must always start with a YAML frontmatter block, followed by the sections below in this order:
 
 ```md
+---
+model: <vendor>.<model-name>
+---
 # <session-summary>
 
 ## 概要
@@ -103,6 +106,9 @@ The saved Markdown must always include the following sections in this order:
 In plain mode (see [Plain mode](#plain-mode)), `## 回答内容` replaces `## 会話内容` — never both:
 
 ```md
+---
+model: <vendor>.<model-name>
+---
 # <session-summary>
 
 ## 概要
@@ -124,6 +130,10 @@ If the session contains one or more relevant URLs, append this optional section 
 ```
 
 ### Purpose of each section
+
+#### frontmatter
+
+Records the AI model that wrote the note — the model running the skill, not one that merely came up in the conversation. The only required key is `model`, written as `<vendor>.<model-name>` with a lowercase vendor name: `anthropic.claude-opus-5`, `openai.codex-gpt-5.6-terra`. Deployment/region prefixes (`us.anthropic.…`) and variant suffixes (`[1m]`) are stripped; a dated API model ID is kept as-is when that's the model's own identifier. `model: unknown` is used when the model name genuinely cannot be determined, and no other keys are added unless the user asks.
 
 #### `概要`
 
@@ -174,7 +184,7 @@ This skill follows the steps below:
 1. Check whether the invoking slash-command ARGUMENTS literally contain `plain=true`; if so, this run is in [plain mode](#plain-mode). Separately check for `simplify=true`; if so, this run is in [simplify mode](#simplify-mode) (default: off, verbatim)
 2. Reconstruct the content section — the turn-by-turn transcript (`会話内容`) normally, or every assistant utterance with user turns left out (`回答内容`) in plain mode — verbatim by default, or condensed into a summary when simplify mode is on — and decide on a short summary for the session
 3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
-4. Build the Markdown content with `概要` and either `会話内容` or `回答内容` (whichever mode applies), adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
+4. Build the Markdown content — the `model` frontmatter, `概要`, and either `会話内容` or `回答内容` (whichever mode applies) — adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
 5. Save the note — directly into the output directory, or into the resolved vault directory when `use_obsidian_cli = true`
 6. Tell the user the saved path and briefly summarize what was captured
 7. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
@@ -200,6 +210,7 @@ Before saving, make sure at least the following are true:
 
 - the file is actually written to disk
 - the filename follows the required pattern
+- the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
 - exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript, not a summary or paraphrase, and excludes tool-call noise — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
 - the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim, and excludes tool-call noise — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead

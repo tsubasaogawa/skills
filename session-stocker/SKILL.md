@@ -71,9 +71,12 @@ Create one Markdown file at:
 
 Resolve `<artifacts-directory>` from `~/.config/session-stocker/config.toml` using `artifacts.directory` (see Configuration above).
 
-The file must always contain these sections in this order:
+The file must always start with a YAML frontmatter block, followed by these sections in this order:
 
 ```md
+---
+model: <vendor>.<model-name>
+---
 # <session-summary>
 
 ## 概要
@@ -84,6 +87,9 @@ The file must always contain these sections in this order:
 In plain mode (see [Plain mode](#plain-mode)), use `## 回答内容` in place of `## 会話内容` — never both:
 
 ```md
+---
+model: <vendor>.<model-name>
+---
 # <session-summary>
 
 ## 概要
@@ -132,6 +138,25 @@ Examples:
 If a file with the same name already exists, append `-2`, `-3`, and so on instead of overwriting it.
 
 ### 3. Write the content
+
+#### frontmatter
+
+The note opens with a YAML frontmatter block whose only required key is `model`: the AI model that wrote the note — that is, the model running this skill right now, not a model that merely came up in the conversation.
+
+Write it as `<vendor>.<model-name>`, where `<vendor>` is the lowercase provider name and `<model-name>` is the model's own identifier:
+
+```md
+---
+model: anthropic.claude-opus-5
+---
+```
+
+Examples: `anthropic.claude-opus-5`, `anthropic.claude-sonnet-5`, `openai.codex-gpt-5.6-terra`.
+
+- Use the plain model name. Strip deployment/region prefixes (`us.anthropic.…`) and context-window or variant suffixes such as `[1m]`.
+- Keep the API-style dated model ID if that's the identifier you know yourself by (e.g. `anthropic.claude-haiku-4-5-20251001`).
+- If you genuinely cannot determine your own model name, write `model: unknown` rather than guessing.
+- Do not add other frontmatter keys unless the user asks for them.
 
 #### `概要`
 
@@ -204,7 +229,7 @@ python3 <skill-dir>/scripts/obsidian_stock.py create \
   --body /tmp/session-stock-body.md
 ```
 
-Write the Markdown body (everything from `# <session-summary>` down) to a temp file first, then pass it with `--body`. The script resolves the vault (from `vault_name`, or the currently focused vault if that's empty), treats `artifacts.directory` as the vault-relative folder, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, verifies the file on disk byte for byte, and prints the vault name and note path it used. Report that path to the user.
+Write the Markdown body (everything from the `---` frontmatter block down) to a temp file first, then pass it with `--body`. The script writes the bytes as-is, so the frontmatter arrives intact. The script resolves the vault (from `vault_name`, or the currently focused vault if that's empty), treats `artifacts.directory` as the vault-relative folder, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, verifies the file on disk byte for byte, and prints the vault name and note path it used. Report that path to the user.
 
 Obsidian does not need to be running. The script reads the vault registry from `obsidian.json` when the CLI does not answer, and a running Obsidian is asked to open the new note only as a best-effort nicety — if it is closed, its file watcher indexes the note at next start. The one exception is an unnamed vault: resolving "whichever vault is currently focused" requires a running Obsidian.
 
@@ -228,14 +253,14 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
    - In plain mode: every assistant utterance, in order, with user turns left out (`回答内容`).
    - Not in simplify mode (default): write that content verbatim, turn-by-turn.
    - In simplify mode: write that content as a condensed summary instead of a verbatim transcript.
-   Generate the session summary either way.
+   Generate the session summary either way, and build the `model` frontmatter from your own model name (see [frontmatter](#frontmatter)).
 3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 5. Check whether the user's request or slash-command ARGUMENTS name an Obsidian vault to save into. Save the note:
    - A vault was named explicitly: write the body to a temp file and run `scripts/obsidian_stock.py create --vault "<name>"` as described above, regardless of `use_obsidian_cli`.
    - No vault named, `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
    - No vault named, `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
 6. Tell the user the saved path and briefly summarize what was captured.
-7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容` or `回答内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. If they decline or don't respond, leave the note as is.
+7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容` or `回答内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. Keep the frontmatter block untouched when you push the note back. If they decline or don't respond, leave the note as is.
 
 ## Quality bar
 
@@ -243,6 +268,7 @@ Before saving, check that:
 - the file is actually written to disk (with `use_obsidian_cli = true`, the script's own round-trip check covers this — if it reports a mismatch, tell the user instead of retrying blindly)
 - the note body was never passed to the `obsidian` CLI as an argument
 - the filename matches the required pattern
+- the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
 - exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `plain=true` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
 - the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim — unless `simplify=true` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
