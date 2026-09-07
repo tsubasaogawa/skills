@@ -1,48 +1,50 @@
 # Semantic Commit Helper Skill
 
 This repository contains the `semantic-commit-helper` skill for the AI Agent.
-This skill assists users in creating commit messages that adhere to the Conventional Commits specification.
+This skill assists users in creating commit messages that adhere to the Conventional Commits specification, with as few round-trips as possible.
 
 ## Example
 
 ```console
-✦ I will activate the semantic-commit-helper skill to assist with generating a high-quality commit message and finalizing the commit.
+> /semantic-commit-helper
 
-✦ I'll check the staged changes with git status and git diff --staged to understand the updates.
+✦ Which commit message fits best?
+  1. docs: add system architecture diagram
+  2. docs: visualize Lambda-based request flow in README
+  3. feat: ship architecture.svg as a project asset
+> 1
 
-✦ What is the primary motivation or reason for adding this system architecture diagram?
-> Because the README lacked even a simple configuration diagram, making it difficult to grasp the system overview.
+✦ Committed: docs: add system architecture diagram
+```
 
-✦ I have drafted the following commit message based on your input:
+Quick mode:
 
-   1 docs: add system architecture diagram
-   2
-   3 Add `architecture.svg` to visualize the system structure (Client, API Gateway, Lambda, Embedded CSV).
-   4 This addresses the lack of a simple architecture diagram for the documentation.
+```console
+> /semantic-commit-helper --quick
 
-  Shall I proceed with the commit?
-
-✦ I have successfully committed the changes.
-
-   1 [main 5830c0c] docs: add system architecture diagram
-   2  1 file changed, 50 insertions(+)
-   3  create mode 100644 architecture.svg
+✦ Committed: fix(parser): handle empty input without panicking
 ```
 
 ## Features
 
-- **Automated Analysis**: Analyzes staged changes (`git diff --staged`) to understand the "what".
-- **Intent Gathering**: Asks the user for the "why" to ensure meaningful commit messages.
+- **Single-shot Analysis**: Reads status, stat, and diff in one command. Large diffs are summarized instead of read in full.
+- **One Question at Most**: Proposes 3 complete commit message candidates and commits the chosen one. No separate motivation question, no confirmation step.
+- **Auto-skip for Obvious Changes**: Typo fixes, dependency bumps, renames, and similar changes are committed without asking.
+- **Quick Mode**: `--quick` (or `--fast`) skips every question and commits immediately.
 - **Conventional Commits**: Generates messages following the standard format (`type(scope): subject`).
-- **Interactive Workflow**: Guides the user through staging, reviewing, and committing changes.
 
 ## Usage
 
-To use this skill with the Agent:
-
-1.  Ensure you are in this repository or have the skill configured in your agent's path.
-2.  When you want to commit changes, simply ask the agent:
+1.  Stage your changes with `git add`.
+2.  Ask the agent:
     > "Commit these changes"
-    > "Help me commit"
-3.  The agent will activate the `semantic-commit-helper` skill and guide you through the process.
+    > "/semantic-commit-helper --quick"
+    > "/semantic-commit-helper japanese"
+3.  Pick a candidate if asked. The agent commits and stops.
 
+## Arguments
+
+| Argument | Effect |
+|---|---|
+| `--quick`, `--fast` | Skip all questions and commit immediately |
+| `japanese`, `english`, ... | Language of the commit message (default: English) |
