@@ -1,6 +1,6 @@
 ---
-name: branch-diff-three-line-summary
-description: Summarize the committed changes of a Git branch (current branch by default, or a branch / PR number given as an argument) against the default branch in exactly three concise bullet points. Line length and writing style are adjustable via ~/.config/branch-diff-three-line-summary/config.toml. Use when the user wants a very short explanation of "this branch", "branch diff", or "changes on this branch". Not for commit messages, PR descriptions, code quality review, or uncommitted-only changes.
+name: branch-tldr
+description: Summarize the committed changes of a Git branch (current branch by default, or a branch / PR number given as an argument) against the default branch in exactly three concise bullet points. Line length and writing style are adjustable via ~/.config/branch-tldr/config.toml. Use when the user wants a very short explanation of "this branch", "branch diff", or "changes on this branch". Not for commit messages, PR descriptions, code quality review, or uncommitted-only changes.
 disable-model-invocation: true
 ---
 
@@ -24,15 +24,15 @@ Produce a compact explanation of what a Git branch changes, based on the committ
   ```
   and take `<target>` as `origin/<headRefName>`. For a cross-repository (fork) PR, `origin/<headRefName>` does not exist, so fetch it into a local ref instead:
   ```bash
-  git fetch --quiet origin pull/<n>/head:refs/branch-diff-summary/pr-<n>
+  git fetch --quiet origin pull/<n>/head:refs/branch-tldr/pr-<n>
   ```
-  and take `<target>` as `refs/branch-diff-summary/pr-<n>`. If `gh` is unavailable or either command fails, say so in one line and stop.
+  and take `<target>` as `refs/branch-tldr/pr-<n>`. If `gh` is unavailable or either command fails, say so in one line and stop.
 
 Below, `<target>` means the resolved ref (`HEAD` when no argument is given), and `<base>` means the comparison base resolved in step 4 of the workflow.
 
 ## Configuration
 
-The config file always lives at `~/.config/branch-diff-three-line-summary/config.toml`, regardless of where this skill itself is installed:
+The config file always lives at `~/.config/branch-tldr/config.toml`, regardless of where this skill itself is installed:
 
 ```toml
 [output]
