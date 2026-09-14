@@ -1,6 +1,6 @@
 ---
 name: ai-credit-efficient-review
-description: "Review a pull request, branch diff, or changed files while using AI Credit efficiently. Use this skill whenever the user asks for a cheaper review, a lightweight review, a high-signal review, a review that prioritizes only major issues, or mentions AI Credit / cost efficiency in the context of code review. Trigger for prompts like 'AI Credit を節約しつつレビューして', '軽めにレビューして', '重大な問題だけ見て', or 'review this PR efficiently'. Prefer this skill over an exhaustive review when the user wants cost-awareness. Do not use it when the runtime has already forced a dedicated /review workflow, or when the user explicitly asks for a full exhaustive review regardless of cost."
+description: "Review a PR, branch diff, or changed files while spending AI Credit efficiently. Use when the user asks for a cheaper, lightweight, or major-issues-only review, e.g. 'AI Credit を節約しつつレビューして', '軽めにレビューして', '重大な問題だけ見て'. Not for a full exhaustive review or when a dedicated /review workflow is already in effect."
 allowed-tools: "Read, Glob, Bash(git:*), Bash(gh:*), Bash(python:*), Bash(ls:*)"
 metadata:
   version: 0.0.2
