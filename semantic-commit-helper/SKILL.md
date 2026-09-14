@@ -1,6 +1,6 @@
 ---
 name: semantic-commit-helper
-description: "Use when the user wants to commit staged changes with a well-crafted message (e.g. 'let's commit', 'help me write a commit message'), even without mentioning 'conventional commits'. Analyzes the staged diff, proposes Conventional Commits message candidates, and commits the one the user picks. Supports a --quick flag that skips all questions and commits immediately. Not for: viewing history, pushing, reverting, resolving conflicts, or conceptual questions about commit formats."
+description: "Commit staged changes with a Conventional Commits message. Use when the user wants to commit or asks for help writing a commit message, e.g. 'let's commit'. Proposes candidates from the staged diff and commits the chosen one; --quick skips questions. Not for history, push, revert, or conflict resolution."
 allowed-tools: "AskUserQuestion, Bash(git status:*), Bash(git add:*), Bash(git diff:*), Bash(git log:*), Bash(git commit -m:*)"
 metadata:
   version: 0.1.0
