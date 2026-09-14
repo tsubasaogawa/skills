@@ -1,11 +1,11 @@
 ---
-name: tf-destroy-plan-inverter
-description: "Use this skill whenever the user has a `terraform destroy` (or `terraform plan -destroy`) HCL diff output — resources marked `will be destroyed` with `- attr = value -> null` lines and a `Plan: N to add, 0 to change, N to destroy.` summary — and wants to know what `terraform plan` would show if the same config were applied from a completely clean/empty state (no state file, no existing resources). Trigger for phrases like 'この destroy 結果から、まっさらな環境で plan したらどうなるか教えて', 'destroy の逆を机上でやって', 'plan 相当の出力を再現して', 'reverse this destroy plan into a create plan', or when the user pastes a destroy diff and asks what a fresh `terraform plan` would look like. This is a desk-check / thought-experiment tool: it NEVER runs `terraform plan`, `apply`, or `destroy`, and never touches real state or infrastructure — it only transforms the pasted text. Do NOT use this skill if the user actually wants to run a real `terraform plan` (that's a normal Bash/terraform task, not a text inversion), or if they haven't pasted a destroy-style diff to invert."
-allowed-tools: "Read"
+allowed-tools: Read
+disable-model-invocation: true
+description: 'Use this skill whenever the user has a `terraform destroy` (or `terraform plan -destroy`) HCL diff output — resources marked `will be destroyed` with `- attr = value -> null` lines and a `Plan: N to add, 0 to change, N to destroy.` summary — and wants to know what `terraform plan` would show if the same config were applied from a completely clean/empty state (no state file, no existing resources). Trigger for phrases like ''この destroy 結果から、まっさらな環境で plan したらどうなるか教えて'', ''destroy の逆を机上でやって'', ''plan 相当の出力を再現して'', ''reverse this destroy plan into a create plan'', or when the user pastes a destroy diff and asks what a fresh `terraform plan` would look like. This is a desk-check / thought-experiment tool: it NEVER runs `terraform plan`, `apply`, or `destroy`, and never touches real state or infrastructure — it only transforms the pasted text. Do NOT use this skill if the user actually wants to run a real `terraform plan` (that''s a normal Bash/terraform task, not a text inversion), or if they haven''t pasted a destroy-style diff to invert.'
 metadata:
-  version: 0.0.1
+    version: 0.0.2
+name: tf-destroy-plan-inverter
 ---
-
 # Terraform Destroy Plan Inverter
 
 You reconstruct, on paper only, what `terraform plan` would print for a set of resources if they
