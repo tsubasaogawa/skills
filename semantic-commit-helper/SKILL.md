@@ -3,7 +3,7 @@ name: semantic-commit-helper
 description: "Commit staged changes with a Conventional Commits message. Use when the user wants to commit or asks for help writing a commit message, e.g. 'let's commit'. Proposes candidates from the staged diff and commits the chosen one; --quick skips questions. Not for history, push, revert, or conflict resolution."
 allowed-tools: "AskUserQuestion, Bash(git status:*), Bash(git add:*), Bash(git diff:*), Bash(git log:*), Bash(git commit -m:*)"
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Semantic Commit Helper
@@ -21,11 +21,14 @@ Do not read any config file. Language and mode come only from the arguments abov
 
 ## Workflow
 
-1. **Inspect Changes** in a single Bash call:
+1. **Inspect Changes**. Prefer the session context over git diffs.
 
-   ```
-   git status --short && git diff --staged --stat && git diff --staged
-   ```
+   - **Session context first**: If this session already contains the file edits being committed (e.g. Edit / Write tool calls you made, or diffs shown earlier), run only `git status --short`. When every staged file appears in that edit history, use the history as the source of truth and do not run `git diff`. For any staged file missing from the history, run `git diff --staged -- <those files>` only.
+   - **Otherwise**, inspect in a single Bash call:
+
+     ```
+     git status --short && git diff --staged --stat && git diff --staged
+     ```
 
    - If nothing is staged, ask the user what to stage, stage it with `git add`, and re-run the command.
    - If the `--stat` summary shows a large diff (roughly more than 300 changed lines or more than 10 files), do not read the full diff. Re-run with `git diff --staged --stat` only and use the file list plus `git diff --staged -- <a few key files>` to understand the change.
