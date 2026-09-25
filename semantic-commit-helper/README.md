@@ -27,7 +27,8 @@ Quick mode:
 
 ## Features
 
-- **Single-shot Analysis**: Reads status, stat, and diff in one command. Large diffs are summarized instead of read in full.
+- **Session-aware**: If the session already contains the edits being committed, uses that history instead of reading `git diff`.
+- **Single-shot Analysis**: Otherwise reads status, stat, and diff in one command. Large diffs are summarized instead of read in full.
 - **One Question at Most**: Proposes 3 complete commit message candidates and commits the chosen one. No separate motivation question, no confirmation step.
 - **Auto-skip for Obvious Changes**: Typo fixes, dependency bumps, renames, and similar changes are committed without asking.
 - **Quick Mode**: `--quick` (or `--fast`) skips every question and commits immediately.
