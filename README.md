@@ -10,6 +10,7 @@ A collection of personal GitHub Copilot CLI skills. Each directory is a self-con
 | [branch-tldr](branch-tldr/) | Summarize a branch or PR's committed changes in three points |
 | [hacker-news-digest](hacker-news-digest/) | Create a Japanese digest of yesterday's popular Hacker News stories |
 | [japanese-tech-writing](japanese-tech-writing/) | Create and revise natural, clear Japanese technical writing |
+| [natural-japanese](natural-japanese/) | Write, revise, and score natural Japanese documents (fork of coji/natural-japanese) |
 | [pr-branch-composition-check](pr-branch-composition-check/) | Verify that a PR contains commits only from specified branches or PRs |
 | [prompt-feedback](prompt-feedback/) | Provide good / more / next action feedback on conversation prompts |
 | [resume-improver](resume-improver/) | Restructure Japanese resumes while preserving supporting evidence |
