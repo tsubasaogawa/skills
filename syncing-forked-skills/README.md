@@ -1,4 +1,4 @@
-# Skill Fork Sync
+# Syncing Forked Skills
 
 This interactive skill applies upstream updates to a customized forked skill. It presents upstream and local changes one hunk at a time, so you can choose which changes to adopt without losing your customizations.
 
@@ -7,13 +7,13 @@ This interactive skill applies upstream updates to a customized forked skill. It
 Provide the upstream, the currently based-on version, and the version to import, in that order.
 
 ```text
-/skill-fork-sync <owner/repo[/path] | github-url> <old-version> <new-version>
+/syncing-forked-skills <owner/repo[/path] | github-url> <old-version> <new-version>
 ```
 
 For example:
 
 ```text
-/skill-fork-sync owner/skill-repo v1.2.0 v1.4.0
+/syncing-forked-skills owner/skill-repo v1.2.0 v1.4.0
 ```
 
 ## What it does

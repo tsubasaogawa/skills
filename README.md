@@ -16,7 +16,7 @@ A collection of personal GitHub Copilot CLI skills. Each directory is a self-con
 | [resume-improver](resume-improver/) | Restructure Japanese resumes while preserving supporting evidence |
 | [semantic-commit-helper](semantic-commit-helper/) | Create a Conventional Commits message and commit staged changes |
 | [session-stocker](session-stocker/) | Save a conversation as a Markdown note in an artifacts directory |
-| [skill-fork-sync](skill-fork-sync/) | Interactively apply upstream updates to a customized forked skill |
+| [syncing-forked-skills](syncing-forked-skills/) | Interactively apply upstream updates to a customized forked skill |
 | [tf-destroy-plan-inverter](tf-destroy-plan-inverter/) | Desk-check a Terraform destroy diff as an equivalent create plan |
 
 ## Installation
