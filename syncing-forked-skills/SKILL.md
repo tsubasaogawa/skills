@@ -1,5 +1,5 @@
 ---
-name: skill-fork-sync
+name: syncing-forked-skills
 description: >-
   Bring upstream changes into a skill you forked and then customized, one hunk at a time,
   without losing your own edits. Resolves the upstream repository and the local fork, shows
@@ -14,8 +14,10 @@ description: >-
 disable-model-invocation: true
 argument-hint: "<owner/repo[/path] | github-url> <old-version> <new-version>"
 allowed-tools: Read, Edit, Write, Glob, Grep, AskUserQuestion, Bash(git:*), Bash(gh:*), Bash(mkdir:*), Bash(cp:*), Bash(rm:*), Bash(ls:*), Bash(wc:*), Bash(head:*), Bash(cat:*), Bash(tar:*), Bash(diff:*), Bash(test:*), Bash(find:*)
+metadata:
+  version: 0.1.1
 ---
-# Skill Fork Sync
+# Syncing Forked Skills
 
 Merge upstream changes into a skill that was forked and then customized locally.
 
@@ -44,7 +46,7 @@ Stop and say so when the two versions resolve to the same commit, or when `<old>
 
 ### 1. Fetch the upstream history
 
-Cache the clone at `~/.cache/skill-fork-sync/<owner>-<repo>/` so repeated syncs against the same upstream stay cheap.
+Cache the clone at `~/.cache/syncing-forked-skills/<owner>-<repo>/` so repeated syncs against the same upstream stay cheap.
 
 ```bash
 git clone --filter=blob:none --no-checkout https://github.com/<owner>/<repo>.git <cache>
