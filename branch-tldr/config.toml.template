@@ -4,3 +4,6 @@
 max_line_length = 100
 # Extra instruction about writing style. Leave empty to use only the built-in rules.
 style = "日本語の場合は常体 (だ・である調) を使う。"
+# Reader's technical background: "high" (engineers in this area), "medium" (general engineers), or "low" (non-engineers).
+# The --expertise argument overrides this value for a single run.
+expertise = "medium"
