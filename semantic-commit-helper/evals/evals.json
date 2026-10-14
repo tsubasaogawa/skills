@@ -1,0 +1,87 @@
+{
+  "skill_name": "semantic-commit-helper",
+  "evals": [
+    {
+      "id": 1,
+      "name": "quick-typo-fix",
+      "setup": "bash evals/files/setup_repo.sh typo /tmp/sch-eval/typo",
+      "prompt": "/tmp/sch-eval/typo の README の typo 直したやつ stage してあるから、さくっとコミットしといて --quick",
+      "expected_output": "質問せずに docs タイプの Conventional Commits メッセージでコミットし、件名を 1 文で報告して終わる。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "AskUserQuestion を一度も呼んでいない",
+        "git -C /tmp/sch-eval/typo log -1 --format=%s の件名が docs: または docs(<scope>): で始まる",
+        "コミットメッセージが英語で書かれている",
+        "cd を含む Bash コマンドを実行していない",
+        "git commit 成功後に git log や git status を実行していない"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "obvious-dependency-bump",
+      "setup": "bash evals/files/setup_repo.sh deps /tmp/sch-eval/deps",
+      "prompt": "/tmp/sch-eval/deps で lodash を 4.17.21 に上げた。ステージ済みなのでコミットしてほしい",
+      "expected_output": "意図が明らかな依存更新なので質問せず、build(deps) または chore(deps) 相当のメッセージでコミットする。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "AskUserQuestion を一度も呼んでいない",
+        "コミットの件名が build または chore タイプで、lodash または依存更新に言及している",
+        "cd を含む Bash コマンドを実行していない"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ambiguous-intent-asks-candidates",
+      "setup": "bash evals/files/setup_repo.sh ambiguous /tmp/sch-eval/ambiguous",
+      "prompt": "/tmp/sch-eval/ambiguous の変更をコミットしたい。メッセージ考えて",
+      "expected_output": "タイムアウトとリトライ回数の変更は動機が複数考えられるため、AskUserQuestion で 3 つのメッセージ候補を一度だけ提示する。動機を別途尋ねる質問やコミット後の確認はしない。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "AskUserQuestion をちょうど 1 回呼んでいる",
+        "提示した候補が 3 つあり、それぞれ Conventional Commits 形式の完全なメッセージになっている",
+        "3 つの候補がそれぞれ異なる動機を反映している",
+        "変更の動機だけを尋ねる独立した質問をしていない"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "japanese-plain-form",
+      "setup": "bash evals/files/setup_repo.sh feature /tmp/sch-eval/feature",
+      "prompt": "/tmp/sch-eval/feature にステージした formatDate の追加をコミットして。メッセージは japanese で --quick",
+      "expected_output": "feat タイプで、件名と本文を日本語の常体で書いたメッセージを質問なしでコミットする。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "AskUserQuestion を一度も呼んでいない",
+        "コミットの件名が feat: または feat(<scope>): で始まる",
+        "コミットメッセージの説明部分が日本語で書かれている",
+        "コミットメッセージに「です」「ます」などの敬体が含まれていない"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "nothing-staged",
+      "setup": "bash evals/files/setup_repo.sh unstaged /tmp/sch-eval/unstaged",
+      "prompt": "/tmp/sch-eval/unstaged、コミットしよう",
+      "expected_output": "ステージ済みの変更がないことに気づき、何をステージするかユーザーに尋ねる。勝手に git add -A してコミットしない。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "ステージ済みの変更がないことをユーザーに伝えるか、何をステージするか尋ねている",
+        "ユーザーの回答なしに git add を実行していない",
+        "コミットが新たに作られていない (git -C /tmp/sch-eval/unstaged rev-list --count HEAD が 1 のまま)"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "large-diff-uses-stat",
+      "setup": "bash evals/files/setup_repo.sh large /tmp/sch-eval/large",
+      "prompt": "/tmp/sch-eval/large の var を const に置き換えたリファクタ、ステージ済みだからコミットお願い --quick",
+      "expected_output": "差分が大きいため全文の diff を読まず、--stat と一部のファイルの diff だけで内容を把握し、refactor タイプでコミットする。",
+      "files": ["evals/files/setup_repo.sh"],
+      "expectations": [
+        "パス指定なしの git diff --staged で全文の差分を 2 回以上取得していない",
+        "コミットの件名が refactor: または refactor(<scope>): で始まる",
+        "AskUserQuestion を一度も呼んでいない"
+      ]
+    }
+  ]
+}

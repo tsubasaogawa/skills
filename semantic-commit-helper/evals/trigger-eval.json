@@ -1,0 +1,22 @@
+[
+  {"query": "いい感じにまとまったのでコミットしたい。メッセージは conventional commits で", "should_trigger": true},
+  {"query": "git add まではやった。コミットメッセージ何にすればいいか考えて", "should_trigger": true},
+  {"query": "let's commit this", "should_trigger": true},
+  {"query": "さっき直した src/api/client.ts のリトライ処理、ステージしたからコミットしといて", "should_trigger": true},
+  {"query": "feat と fix どっちがいいか迷ってる。staged の diff 見てコミットメッセージ提案して", "should_trigger": true},
+  {"query": "コミットして --quick", "should_trigger": true},
+  {"query": "README の誤字修正だけなので japanese でコミットお願い", "should_trigger": true},
+  {"query": "変更終わったからコミットまでやっちゃって。push はまだしないで", "should_trigger": true},
+  {"query": "ok commit msg pls, staged changes are the terraform module refactor for the alb listener rules", "should_trigger": true},
+  {"query": "直前のコミットを push して PR 作って", "should_trigger": false},
+  {"query": "main と feature/login のマージでコンフリクトが出た。解消手伝って", "should_trigger": false},
+  {"query": "昨日のコミット 3a9f2c1 を revert したい", "should_trigger": false},
+  {"query": "このリポジトリの直近 20 件のコミット履歴を見て、誰が何を変えたか要約して", "should_trigger": false},
+  {"query": "うちのチームの Conventional Commits のルールを CONTRIBUTING.md にまとめて", "should_trigger": false},
+  {"query": "直前のコミットメッセージ typo してたので amend で直したい", "should_trigger": false},
+  {"query": "commitlint を導入して husky の commit-msg フックで Conventional Commits を強制したい", "should_trigger": false},
+  {"query": "git rebase -i で過去 5 コミットを 1 つにまとめる手順を教えて", "should_trigger": false},
+  {"query": "semantic-release で CHANGELOG を自動生成したい。設定ファイル書いて", "should_trigger": false},
+  {"query": "feat と chore の使い分けってどういう基準?", "should_trigger": false},
+  {"query": "このブランチ、origin/main から何コミット遅れてるか確認して", "should_trigger": false}
+]
