@@ -1,7 +1,8 @@
 ---
 name: branch-tldr
-description: Summarize the committed changes of a Git branch (current branch by default, or a branch / PR number given as an argument) against the default branch in exactly three concise bullet points. Line length and writing style are adjustable via ~/.config/branch-tldr/config.toml. Use when the user wants a very short explanation of "this branch", "branch diff", or "changes on this branch". Not for commit messages, PR descriptions, code quality review, or uncommitted-only changes.
+description: Summarize the committed changes of a Git branch (current branch by default, or a branch / PR number given as an argument) against the default branch in exactly three concise bullet points. Line length, writing style, and the reader's expertise level are adjustable via ~/.config/branch-tldr/config.toml, and the expertise level can also be overridden per run with --expertise. Use when the user wants a very short explanation of "this branch", "branch diff", or "changes on this branch". Not for commit messages, PR descriptions, code quality review, or uncommitted-only changes.
 disable-model-invocation: true
+argument-hint: "[<branch> | <PR number>] [--expertise high|medium|low]"
 ---
 
 # Branch Diff Three-Line Summary
@@ -10,7 +11,11 @@ Produce a compact explanation of what a Git branch changes, based on the committ
 
 ## Arguments
 
-`$ARGUMENTS` may be empty, a branch name, or a PR number.
+`$ARGUMENTS` takes the form `[<branch> | <PR number>] [--expertise high|medium|low]`. The `--expertise` option may appear before or after the target.
+
+First, take out `--expertise <level>` if present. It overrides the `expertise` value from the configuration for this run only. If `--expertise` has no value, or the value is not one of `high`, `medium`, or `low`, say so in one line and stop; do not fall back silently, because the user asked for a level explicitly.
+
+What remains after removing the option may be empty, a branch name, or a PR number.
 
 - Empty: summarize the current branch.
 - Branch name: summarize that branch. Use `origin/<name>` if the local branch does not exist.
@@ -38,16 +43,18 @@ The config file always lives at `~/.config/branch-tldr/config.toml`, regardless 
 [output]
 max_line_length = 100
 style = "日本語の場合は常体 (だ・である調) を使う。"
+expertise = "medium"
 ```
 
 - `max_line_length`: maximum characters per bullet body, excluding the leading `- `. Count full-width and half-width characters as one each.
 - `style`: an extra free-text instruction about writing style. An empty string means no extra instruction.
+- `expertise`: how much technical background the reader has, one of `high`, `medium`, or `low`. See "Expertise levels" under the output rules. The `--expertise` argument takes precedence over this value.
 
 The values shown above are the built-in defaults. If the file does not exist, use those defaults and continue. Do not create the file and do not mention that it is missing; the output must stay three bullets. `config.toml.template` in this skill's directory exists only as a starting point for users who want to override the defaults by hand.
 
-Do not rely on a TOML parser. Read the file with `cat` and pick up `max_line_length = <integer>` and `style = "<string>"` under `[output]`. Apply these fallbacks silently:
+Do not rely on a TOML parser. Read the file with `cat` and pick up `max_line_length = <integer>`, `style = "<string>"`, and `expertise = "<string>"` under `[output]`. Apply these fallbacks silently:
 
-- Missing key, or a `max_line_length` that is not a positive integer: use the built-in default shown above.
+- Missing key, a `max_line_length` that is not a positive integer, or an `expertise` other than `high`, `medium`, or `low`: use the built-in default shown above.
 - `style = ""` set explicitly: no extra style instruction. This differs from a missing `style`, which falls back to the default 常体 instruction.
 
 ## Workflow
@@ -103,16 +110,34 @@ Do not rely on a TOML parser. Read the file with `cat` and pick up `max_line_len
 - Apply the `style` instruction from the configuration. With the default, Japanese output uses plain form (常体), not polite form.
 - Keep each bullet body within `max_line_length` characters. If a bullet runs over, cut detail until it fits rather than wrapping.
 - Prefer explaining user-visible or operational impact over listing filenames.
-- Include filenames only when they clarify the change.
+- Include filenames only when they clarify the change. At `medium` and `low`, rephrasing takes precedence over this.
 - Do not include commands, raw diff snippets, commit hashes, or speculation beyond what the diff supports.
 - Do not write a commit message or PR body unless the user explicitly asks for that instead.
 
+### Expertise levels
+
+Write for the resolved `expertise` level. The level changes only the wording; the three bullet roles and `max_line_length` stay the same at every level.
+
+- `high`: for engineers who work with the changed technology. Use domain terms and identifiers (resource types, variable names, filenames) as they are. In the impact bullet, state what to check before merging or applying.
+- `medium`: for readers who know software in general but not this area. Replace tool-specific terms and identifiers with plain descriptions of what they do (for example, "permission settings" instead of "IAM"). In the impact bullet, first say whether behavior changes right away.
+- `low`: for non-engineers. Use no technical terms. Explain what gets better and how it relates to users or day-to-day work.
+
 ## Good output shape
+
+`high`:
 
 ```markdown
 - 新リージョン向けの Terraform 設定を追加し、既存リージョンとの差分を最小限に抑えている。
 - IAM と provider 設定を新リージョン向けに調整し、環境固有の値を変数へ分離した。
 - 既存環境には影響しない追加変更だが、適用前に新リージョン向けの plan 確認が必要である。
+```
+
+`medium`:
+
+```markdown
+- 新しい地域のデータセンターでもシステムを動かせるよう、インフラの構成定義を追加した。
+- 権限や接続先の設定を新しい地域に合わせ、環境ごとに変わる値は一か所にまとめて差し替えやすくした。
+- 既存の環境は変わらない。ただし反映する前に、新しい地域で何が作られるかの事前確認が必要である。
 ```
 
 ## What to avoid
