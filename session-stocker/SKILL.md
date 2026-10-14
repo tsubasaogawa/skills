@@ -1,5 +1,6 @@
 ---
 description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
+argument-hint: "[--plain] [--simplify] [<vault name>]"
 name: session-stocker
 ---
 # Session Stock

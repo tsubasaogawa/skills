@@ -1,6 +1,7 @@
 ---
 name: pr-branch-composition-check
 description: "Verify that a GitHub pull request is composed ONLY of commits from a specific set of branches/PRs, and flag any commit that came from somewhere else. Use this skill whenever the user asks to confirm a PR is built purely from named parent branches or PRs, wants to check for stray/leaked commits mixed into a stacked PR, or says things like 'このPRが指定したブランチだけで構成されているか確認して', 'PRに他のブランチのコミットが混ざっていないかチェックして', '◯◯と◯◯と◯◯のブランチだけで構成されていることを証明して', or 'make sure this PR only contains commits from #1234 and #5678'. This is a commit-provenance audit, not a general code review — do NOT use it for reviewing code quality, correctness, or diff content (use a review skill for that instead)."
+argument-hint: "<PR number> [<parent branch | PR number>...]"
 allowed-tools: "Bash(gh:*), Bash(git:*)"
 metadata:
   version: 0.0.1
