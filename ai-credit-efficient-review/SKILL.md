@@ -1,6 +1,7 @@
 ---
 name: ai-credit-efficient-review
 description: "Review a PR, branch diff, or changed files while spending AI Credit efficiently. Use when the user asks for a cheaper, lightweight, or major-issues-only review, e.g. 'AI Credit を節約しつつレビューして', '軽めにレビューして', '重大な問題だけ見て'. Not for a full exhaustive review or when a dedicated /review workflow is already in effect."
+argument-hint: "[<PR number>]"
 allowed-tools: "Read, Glob, Bash(git:*), Bash(gh:*), Bash(python:*), Bash(ls:*)"
 metadata:
   version: 0.0.2
