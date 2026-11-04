@@ -18,13 +18,16 @@ next time it starts.
 Usage:
   obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM] [--vault <name>]
   obsidian_stock.py overwrite --path "<vault-relative path>" --body <file> [--config <path>] [--vault <name>]
+  obsidian_stock.py template  [--config <path>] [--vault <name>]
 
 `artifacts.directory` is always a vault-relative folder path (empty means the
 vault root). `--vault` names the vault to save into directly. It overrides the
 config's `vault_name`, which itself overrides falling back to whichever vault
 Obsidian currently has focused (see `resolve_vault`).
 
-Both subcommands print `vault<TAB><name>` and `path<TAB><vault-relative path>`.
+`create` and `overwrite` print `vault<TAB><name>` and `path<TAB><vault-relative path>`.
+`template` resolves `artifacts.template` (a vault-relative path) and prints
+`path<TAB><local absolute path>` so the caller can read the template file.
 """
 
 import argparse
@@ -276,6 +279,19 @@ def cmd_overwrite(args: argparse.Namespace) -> None:
     write_note(vault, vault_dir, args.path.strip("/"), body, overwrite=True)
 
 
+def cmd_template(args: argparse.Namespace) -> None:
+    config_path = pathlib.Path(args.config)
+    _, vault_dir, _ = resolve_vault(config_path, args.vault)
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    template = config.get("artifacts", {}).get("template", "").strip().strip("/")
+    if not template:
+        die("`artifacts.template` is not set in the config")
+    target = vault_dir / template
+    if not target.is_file():
+        die(f"template not found: {target}")
+    print(f"path\t{target}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -298,6 +314,13 @@ def main() -> None:
         "--vault", help="save into this vault by name, overriding vault_name / the active-vault fallback"
     )
     over.set_defaults(func=cmd_overwrite)
+
+    tmpl = sub.add_parser("template", help="print the local path of the configured template")
+    tmpl.add_argument("--config", default=str(DEFAULT_CONFIG))
+    tmpl.add_argument(
+        "--vault", help="resolve against this vault by name, overriding vault_name / the active-vault fallback"
+    )
+    tmpl.set_defaults(func=cmd_template)
 
     args = parser.parse_args()
     args.func(args)

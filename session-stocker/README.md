@@ -12,12 +12,55 @@ The output directory is configured through `config.toml`, which always lives at 
 [artifacts]
 directory = "/path/to/your/artifacts"
 use_obsidian_cli = false
+template = ""
 ```
 
 `use_obsidian_cli` selects how the note is written, and also changes what `artifacts.directory` means. The content is identical either way. A missing key is treated as `false`.
 
 - `false` — `artifacts.directory` is an absolute filesystem path, and the file is written directly there.
 - `true` — `artifacts.directory` is a folder **relative to the vault root** (empty means the vault root), and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away. Which vault is used comes from `vault_name`, or, if that's empty, whichever vault Obsidian currently has focused.
+
+`template` optionally points at a Markdown file the note is rendered from (see [Template mode](#template-mode)). It is resolved like `directory`: an absolute path when `use_obsidian_cli = false`, a vault-relative path when `true`. Empty means the built-in layout.
+
+## Template mode
+
+Set `artifacts.template` to render the note from your own Markdown file instead of the built-in layout. The template is used verbatim; only these placeholders are replaced:
+
+| Placeholder | Replaced with |
+|---|---|
+| `{{title}}` | session summary (same as the filename title) |
+| `{{date}}` | local date, `YYYY-MM-DD` |
+| `{{time}}` | local time, `HH:mm` |
+| `{{model}}` | `<vendor>.<model-name>` |
+| `{{summary}}` | body of `概要` |
+| `{{content}}` | body of `会話内容` (or `回答内容` with `--plain`); `--simplify` applies as usual |
+| `{{insights}}` | body of `知見`, empty on the first save |
+| `{{references}}` | `参考情報` URL bullets, empty when there are none |
+
+Other `{{...}}` tokens are left as they are. The template owns the frontmatter and headings, so the built-in layout below is not enforced. If the template file is missing, the skill reports an error instead of falling back.
+
+```md
+---
+model: {{model}}
+created: {{date}} {{time}}
+tags: [session]
+---
+# {{title}}
+
+## 概要
+{{summary}}
+
+## 会話内容
+{{content}}
+
+## 知見
+{{insights}}
+
+## 参考情報
+{{references}}
+```
+
+When `知見` is added afterwards, a template containing `{{insights}}` is re-rendered and the note overwritten; otherwise `## 知見` is inserted after the content section as usual.
 
 ## Plain mode
 
@@ -183,8 +226,8 @@ This skill follows the steps below:
 
 1. Check whether the invoking slash-command ARGUMENTS literally contain the bare flag `--plain`; if so, this run is in [plain mode](#plain-mode). Separately check for the bare flag `--simplify`; if so, this run is in [simplify mode](#simplify-mode) (default: off, verbatim)
 2. Reconstruct the content section — the turn-by-turn transcript (`会話内容`) normally, or every assistant utterance with user turns left out (`回答内容`) in plain mode — verbatim by default, or condensed into a summary when simplify mode is on — and decide on a short summary for the session
-3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`
-4. Build the Markdown content — the `model` frontmatter, `概要`, and either `会話内容` or `回答内容` (whichever mode applies) — adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
+3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`, `use_obsidian_cli`, and `template`
+4. Build the Markdown content — rendered from the template when one is configured (`scripts/obsidian_stock.py template` resolves a vault-relative template path), otherwise the `model` frontmatter, `概要`, and either `会話内容` or `回答内容` (whichever mode applies) — adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
 5. Save the note — directly into the output directory, or into the resolved vault directory when `use_obsidian_cli = true`
 6. Tell the user the saved path and briefly summarize what was captured
 7. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
@@ -200,6 +243,7 @@ The script also resolves the vault to use (`vault_name`, or whichever vault Obsi
 ```bash
 python3 scripts/obsidian_stock.py create --title "<session summary>" --body /tmp/session-stock-body.md
 python3 scripts/obsidian_stock.py overwrite --path "<vault-relative path>" --body /tmp/session-stock-body.md
+python3 scripts/obsidian_stock.py template   # prints the local path of artifacts.template
 ```
 
 Obsidian does not need to be running: the vault registry is read from `obsidian.json` when the CLI does not answer, and a closed Obsidian indexes the note through its file watcher at next start. Only an unconfigured vault name needs a running instance, since "the currently focused vault" cannot be resolved otherwise. If `vault_name` doesn't match any known vault, the vault path isn't readable, or no vault could be detected as active, the error is surfaced and nothing is written elsewhere.
@@ -217,6 +261,7 @@ Before saving, make sure at least the following are true:
 - the `知見` section is only present when the user explicitly asked for it
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only
+- in template mode, every placeholder is replaced and nothing else in the template is changed
 
 ## Why this skill is useful
 

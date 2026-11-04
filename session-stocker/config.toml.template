@@ -9,3 +9,7 @@ use_obsidian_cli = false
 # Name the Obsidian vault to save into. Only used when use_obsidian_cli = true.
 # Leave empty to use whichever vault Obsidian currently has focused.
 vault_name = ""
+# Optional Markdown template the note is rendered from (see "Template mode" in SKILL.md).
+# Resolved the same way as directory: an absolute path with use_obsidian_cli = false,
+# a vault-relative path with use_obsidian_cli = true. Leave empty to use the built-in layout.
+template = ""
