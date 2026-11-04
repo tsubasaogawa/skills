@@ -2,6 +2,8 @@
 description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
 argument-hint: "[--plain] [--simplify] [<vault name>]"
 name: session-stocker
+metadata:
+  version: 0.2.0
 ---
 # Session Stock
 
@@ -30,6 +32,7 @@ The config file always lives at `~/.config/session-stocker/config.toml`, regardl
 directory = "/path/to/your/artifacts"
 use_obsidian_cli = false
 vault_name = ""
+template = ""
 ```
 
 If that file doesn't exist, stop and tell the user to create it (they can copy `config.toml.template` from the skill directory to `~/.config/session-stocker/config.toml` and fill in `artifacts.directory`) rather than guessing a directory or writing anywhere else.
@@ -40,6 +43,29 @@ If that file doesn't exist, stop and tell the user to create it (they can copy `
 - `true` — `artifacts.directory` is a folder **relative to the vault root** (leave it empty to save at the vault root), and the write goes through the bundled script as described in [Stocking into an Obsidian vault](#stocking-into-an-obsidian-vault). Use this when the note belongs in a vault whose filesystem location you should not have to know or hardcode: the script resolves the vault by name, so the same config works from WSL against a Windows-side vault.
 
 `vault_name` names which vault to save into when `use_obsidian_cli = true`. Leave it empty to use whichever vault Obsidian currently has focused — the bundled script asks the CLI for the active vault when no name is configured, which is the one case that needs Obsidian to be running. Set it explicitly when you want a specific vault regardless of what's currently open in Obsidian, or when Obsidian may be closed.
+
+`template` optionally points at a Markdown file the note is rendered from instead of the built-in layout (see [Template mode](#template-mode)). It is resolved the same way as `artifacts.directory`: an absolute filesystem path (`~` allowed) when `use_obsidian_cli = false`, a vault-relative path when `use_obsidian_cli = true` or a vault is named explicitly. Treat a missing or empty key as "no template".
+
+## Template mode
+
+Template mode is on whenever `artifacts.template` is set. The note is then produced by taking the template file verbatim and replacing the placeholders below — nothing else in the template is edited, reordered, or removed, and the built-in layout from [Output requirements](#output-requirements) does not apply. The filename rule is unchanged.
+
+| Placeholder | Replaced with |
+|---|---|
+| `{{title}}` | the session summary (same text as the title part of the filename) |
+| `{{date}}` | current local date, `YYYY-MM-DD` |
+| `{{time}}` | current local time, `HH:mm` |
+| `{{model}}` | `<vendor>.<model-name>` (see [frontmatter](#frontmatter)) |
+| `{{summary}}` | the body of `概要` |
+| `{{content}}` | the body of `会話内容` — or `回答内容` in plain mode; `--plain` / `--simplify` apply exactly as without a template |
+| `{{insights}}` | the body of `知見`; an empty string on the first save |
+| `{{references}}` | the `参考情報` URL bullets; an empty string when there are none |
+
+- Replace a placeholder with the body only — the template owns the headings, so don't emit `## 概要` and friends yourself.
+- Leave any other `{{...}}` untouched; only the placeholders in the table are yours. Templater's `<% %>` syntax is not affected either.
+- The template is responsible for the frontmatter. Recommend `model: {{model}}` there if the user asks how to write one, but never add keys or sections the template doesn't contain.
+- If the template file can't be read (key set but file missing), tell the user and stop — don't silently fall back to the built-in layout.
+- Adding `知見` later: if the template contains `{{insights}}`, re-render the whole template with it filled in and overwrite the saved note. If it doesn't, insert `## 知見` right after the content section as in the built-in layout.
 
 ## Plain mode
 
@@ -65,6 +91,8 @@ Simplify mode is independent of [Plain mode](#plain-mode) — the two combine fr
 | present | present | `回答内容` | summarized, assistant only |
 
 ## Output requirements
+
+The layout below applies when no template is configured. In [template mode](#template-mode) the template decides the layout.
 
 Create one Markdown file at:
 
@@ -255,7 +283,8 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
    - Not in simplify mode (default): write that content verbatim, turn-by-turn.
    - In simplify mode: write that content as a condensed summary instead of a verbatim transcript.
    Generate the session summary either way, and build the `model` frontmatter from your own model name (see [frontmatter](#frontmatter)).
-3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory` and `use_obsidian_cli`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
+3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`, `use_obsidian_cli`, and `template`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
+4. If `template` is set, read the template file: with `use_obsidian_cli = true` or a vault named explicitly, run `python3 <skill-dir>/scripts/obsidian_stock.py template [--vault "<name>"]` and read the local path it prints; otherwise read the absolute path directly. Render the note by replacing the placeholders ([Template mode](#template-mode)) instead of building the built-in layout.
 5. Check whether the user's request or slash-command ARGUMENTS name an Obsidian vault to save into. Save the note:
    - A vault was named explicitly: write the body to a temp file and run `scripts/obsidian_stock.py create --vault "<name>"` as described above, regardless of `use_obsidian_cli`.
    - No vault named, `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
@@ -278,3 +307,4 @@ Before saving, check that:
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only
 - any link to another note in the stock directory follows the Obsidian-detection rule (wiki link vs. Markdown link), not a mix of both
+- in template mode: every placeholder from the table is replaced, no other text in the template was changed, and no built-in headings were added on top of the template
