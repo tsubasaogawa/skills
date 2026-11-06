@@ -1,6 +1,6 @@
 # skills
 
-A collection of personal GitHub Copilot CLI skills. Each directory is a self-contained skill; its `SKILL.md` defines the trigger conditions and workflow.
+A collection of personal skills. Each directory is a self-contained skill; its `SKILL.md` defines the trigger conditions and workflow.
 
 ## Skills
 
@@ -22,9 +22,10 @@ A collection of personal GitHub Copilot CLI skills. Each directory is a self-con
 
 ## Installation
 
-Install a single skill for GitHub Copilot in the current repository:
+Install a single skill in the current repository:
 
 ```console
+# Example for GitHub Copilot
 gh skill install tsubasaogawa/skills branch-tldr --agent github-copilot
 ```
 
