@@ -8,6 +8,7 @@ A collection of personal GitHub Copilot CLI skills. Each directory is a self-con
 | --- | --- |
 | [ai-credit-efficient-review](ai-credit-efficient-review/) | Review efficiently by focusing AI Credit on material risks |
 | [branch-tldr](branch-tldr/) | Summarize a branch or PR's committed changes in three points |
+| [finding-unused-customizations](finding-unused-customizations/) | List custom skills and subagents unused in recent Claude Code sessions (Claude Code only) |
 | [hacker-news-digest](hacker-news-digest/) | Create a Japanese digest of yesterday's popular Hacker News stories |
 | [japanese-tech-writing](japanese-tech-writing/) | Create and revise natural, clear Japanese technical writing |
 | [natural-japanese](natural-japanese/) | Write, revise, and score natural Japanese documents (fork of coji/natural-japanese) |
