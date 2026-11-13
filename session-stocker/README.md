@@ -12,13 +12,18 @@ The output directory is configured through `config.toml`, which always lives at 
 [artifacts]
 directory = "/path/to/your/artifacts"
 use_obsidian_cli = false
+vault_name = ""
 template = ""
 ```
 
 `use_obsidian_cli` selects how the note is written, and also changes what `artifacts.directory` means. The content is identical either way. A missing key is treated as `false`.
 
 - `false` — `artifacts.directory` is an absolute filesystem path, and the file is written directly there.
-- `true` — `artifacts.directory` is a folder **relative to the vault root** (empty means the vault root), and the note is created through the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian must be running). Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example — and it also gets the note indexed by Obsidian right away. Which vault is used comes from `vault_name`, or, if that's empty, whichever vault Obsidian currently has focused.
+- `true` — `artifacts.directory` is a folder **relative to the vault root** (empty means the vault root).
+  The note is written into the vault directory by `scripts/obsidian_stock.py`, which resolves the vault by name.
+  Useful when the vault sits somewhere the shell can't write to conveniently — a Windows path used from WSL, for example.
+  Which vault is used comes from `vault_name`, or, if that's empty, whichever vault Obsidian currently has focused.
+  Obsidian needs to be running only in that last case.
 
 `template` optionally points at a Markdown file the note is rendered from (see [Template mode](#template-mode)). It is resolved like `directory`: an absolute path when `use_obsidian_cli = false`, a vault-relative path when `true`. Empty means the built-in layout.
 
@@ -81,7 +86,9 @@ Simplify mode is independent of [Plain mode](#plain-mode) — the two combine fr
 | absent (default) | absent (default) | `会話内容` | verbatim, both parties |
 | absent | present | `会話内容` | summarized, both parties |
 | present | absent | `回答内容` | verbatim, assistant only |
-| present | present | `回答内容` | summarized, assistant only |
+| present | present | `回答内容` | one summary of the assistant's output as a whole, assistant only |
+
+With both flags, `回答内容` is a single summary of everything the assistant said, not per-turn summaries.
 
 ### Setup
 
@@ -176,7 +183,7 @@ If the session contains one or more relevant URLs, append this optional section 
 
 #### frontmatter
 
-Records the AI model that wrote the note — the model running the skill, not one that merely came up in the conversation. The only required key is `model`, written as `<vendor>.<model-name>` with a lowercase vendor name: `anthropic.claude-opus-5`, `openai.codex-gpt-5.6-terra`. Deployment/region prefixes (`us.anthropic.…`) and variant suffixes (`[1m]`) are stripped; a dated API model ID is kept as-is when that's the model's own identifier. `model: unknown` is used when the model name genuinely cannot be determined, and no other keys are added unless the user asks.
+Records the AI model that wrote the note — the model running the skill, not one that merely came up in the conversation. The only required key is `model`, written as `<vendor>.<model-name>` with a lowercase vendor name: `anthropic.claude-sonnet-5-5`, `openai.codex-gpt-5.6-terra`. Deployment/region prefixes (`us.anthropic.…`) and variant suffixes (`[1m]`) are stripped; a dated API model ID is kept as-is when that's the model's own identifier. `model: unknown` is used when the model name genuinely cannot be determined, and no other keys are added unless the user asks.
 
 #### `概要`
 
@@ -188,7 +195,9 @@ A verbatim, turn-by-turn transcript of what the user and the assistant actually 
 
 #### `回答内容` (plain mode only)
 
-Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains every assistant utterance from the session, verbatim and in order, with user turns left out entirely. Tool-call/tool-result noise, raw command output, and system-reminder content are excluded, same as `会話内容`. Consecutive utterances are separated (e.g. a `**Assistant:**` label per turn, or a `---` divider) so the boundaries stay legible. In [simplify mode](#simplify-mode) (`--simplify`), this becomes a condensed summary of the assistant's output instead — key points and outcomes, not exact wording.
+Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains every assistant utterance from the session, verbatim and in order, with user turns left out entirely. Tool-call/tool-result noise, raw command output, and system-reminder content are excluded, same as `会話内容`. Consecutive utterances are separated (e.g. a `**Assistant:**` label per turn, or a `---` divider) so the boundaries stay legible.
+In [simplify mode](#simplify-mode) (`--simplify`), this becomes one summary of the assistant's output as a whole — key points and outcomes, not exact wording.
+It is not summarized turn by turn, and no per-turn labels or dividers are used.
 
 #### `知見`
 
@@ -230,13 +239,13 @@ This skill follows the steps below:
 4. Build the Markdown content — rendered from the template when one is configured (`scripts/obsidian_stock.py template` resolves a vault-relative template path), otherwise the `model` frontmatter, `概要`, and either `会話内容` or `回答内容` (whichever mode applies) — adding `参考情報` only when relevant URLs were mentioned (no `知見` yet)
 5. Save the note — directly into the output directory, or into the resolved vault directory when `use_obsidian_cli = true`
 6. Tell the user the saved path and briefly summarize what was captured
-7. Ask the user whether they want a `知見` section added; if they agree, add it to the saved note
+7. Let the user know a `知見` section can be added on request (e.g. 「知見を追加したいときは教えて」), without asking a question; if the user later asks, add it to the saved note
 
 ### Writing into an Obsidian vault
 
 When `use_obsidian_cli = true`, the note is created by `scripts/obsidian_stock.py`, which resolves the vault by name and writes the file into the vault directory itself.
 
-The note body is deliberately never handed to the `obsidian` CLI. Its `content=` parameter expands `\n` and `\t` and cannot escape a backslash, so a transcript would be silently corrupted, and a multi-kilobyte argument has been observed to crash Obsidian's main process. Writing the file directly sidesteps both: no escaping happens, so nothing can be corrupted, and the script reads the file back and compares it byte for byte before reporting success. The CLI is used only for short lookups and for asking a running Obsidian to open the finished note.
+The note body is deliberately never handed to the `obsidian` CLI. Its `content=` parameter expands `\n` and `\t` and cannot escape a backslash, so a transcript would be silently corrupted, and a multi-kilobyte argument has been observed to crash Obsidian's main process. Writing the file directly sidesteps both: no escaping happens, so nothing can be corrupted, and the script reads the file back and compares it byte for byte before reporting success. The CLI is used only for short lookups.
 
 The script also resolves the vault to use (`vault_name`, or whichever vault Obsidian currently has focused if that's empty), treats `artifacts.directory` as the vault-relative folder, applies the naming rule, and avoids overwriting an existing note. A Windows vault path is translated for WSL via `wslpath`, so the same config works from either side.
 
@@ -257,7 +266,7 @@ Before saving, make sure at least the following are true:
 - the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
 - exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `--plain` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript, not a summary or paraphrase, and excludes tool-call noise — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
-- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim, and excludes tool-call noise — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
+- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim, and excludes tool-call noise — unless `--simplify` was in the invoking ARGUMENTS, in which case it's one summary of the assistant's output as a whole
 - the `知見` section is only present when the user explicitly asked for it
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only

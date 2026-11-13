@@ -9,11 +9,10 @@ through the CLI has been observed to crash Obsidian's main process outright
 never handed to the CLI: this script resolves the vault's filesystem path and
 writes the file itself. Nothing is escaped, so nothing can be corrupted.
 
-The CLI is still used, with small arguments only, to look up the vault registry
-and to nudge a running Obsidian into opening the new note. Both are optional:
-when the CLI is unavailable or Obsidian is not running, the registry is read
-from `obsidian.json` and the note is picked up by Obsidian's file watcher the
-next time it starts.
+The CLI is still used, with small arguments only, for lookups (the vault
+registry and the active vault). It is optional: when the CLI is unavailable or
+Obsidian is not running, the registry is read from `obsidian.json`. The written
+note is picked up by Obsidian's file watcher.
 
 Usage:
   obsidian_stock.py create    --title "<session summary>" --body <file> [--config <path>] [--timestamp YYYYMMDD_HHMM] [--vault <name>]
@@ -224,15 +223,6 @@ def sanitize(title: str) -> str:
     return cleaned
 
 
-def reveal(vault: str, note_path: str) -> None:
-    """Best-effort nudge so a running Obsidian opens the note immediately.
-
-    Obsidian's file watcher indexes the note either way, so a failure here says
-    nothing about whether the write succeeded and must never be fatal.
-    """
-    obsidian(f"vault={vault}", "open", f"path={note_path}", soft=True)
-
-
 def write_note(vault: str, vault_dir: pathlib.Path, note_path: str, body: str, overwrite: bool) -> None:
     target = vault_dir / note_path
     if target.exists() and not overwrite:
@@ -251,7 +241,6 @@ def write_note(vault: str, vault_dir: pathlib.Path, note_path: str, body: str, o
             "body that was written."
         )
 
-    reveal(vault, note_path)
     print(f"vault\t{vault}")
     print(f"path\t{note_path}")
 
