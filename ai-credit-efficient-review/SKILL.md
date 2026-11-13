@@ -169,7 +169,7 @@ PR #1234 を AI Credit を節約しつつレビューして。重大な問題だ
 
 **Good behavior**
 
-1. Run triage for PR #2575.
+1. Run triage for PR #1234.
 2. If the diff is small and localized, inspect only the changed files directly.
 3. Return either "no substantive issues" or a short list of real risks.
 

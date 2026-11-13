@@ -176,11 +176,11 @@ Write it as `<vendor>.<model-name>`, where `<vendor>` is the lowercase provider 
 
 ```md
 ---
-model: anthropic.claude-opus-5
+model: <vendor>.<model-name>
 ---
 ```
 
-Examples: `anthropic.claude-opus-5`, `anthropic.claude-sonnet-5`, `openai.codex-gpt-5.6-terra`.
+Examples (illustrative only; always write the ID of the model actually running): `anthropic.claude-sonnet-5-5`, `openai.codex-gpt-5.6-terra`.
 
 - Use the plain model name. Strip deployment/region prefixes (`us.anthropic.…`) and context-window or variant suffixes such as `[1m]`.
 - Keep the API-style dated model ID if that's the identifier you know yourself by (e.g. `anthropic.claude-haiku-4-5-20251001`).

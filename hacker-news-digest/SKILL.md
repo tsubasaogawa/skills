@@ -1,17 +1,19 @@
 ---
 name: hacker-news-digest-ja
-description: "Generate a Japanese digest for yesterday's Hacker News stories scoring over 100 points, matching the `main.py` workflow without `google-generativeai` or `GEMINI_API_KEY`. Use this skill when users ask for a daily HN digest, want top Hacker News posts translated and summarized in Japanese, or want the Gemini-based workflow replaced with a skill."
+description: >-
+  Generate a Japanese digest of yesterday's Hacker News stories scoring over 100 points.
+  Use when users ask for a daily HN digest or want top Hacker News posts translated and summarized in Japanese.
 metadata:
   version: 0.1.0
 ---
 
 # Hacker News digest in Japanese
 
-Use this skill to reproduce the current `main.py` behavior in a reusable way, but rely on the model's own language abilities instead of Gemini.
+Use this skill to fetch the stories with the bundled script and translate and summarize them yourself.
 
 ## Default scope
 
-Unless the user explicitly asks for something else, keep the behavior fixed to match `main.py`:
+Unless the user explicitly asks for something else, keep these defaults:
 
 - Time window: yesterday in UTC, from `00:00:00` to the next `00:00:00`
 - Source: `https://hn.algolia.com/api/v1/search_by_date`
@@ -19,13 +21,11 @@ Unless the user explicitly asks for something else, keep the behavior fixed to m
 - Page size: `hitsPerPage=100`
 - Output: a Markdown table in Japanese
 
-Do not ask for `GEMINI_API_KEY`. Do not use `google-generativeai`.
-
 ## Workflow
 
 1. Read `scripts/fetch_hn_stories.py` to confirm the exact fetch logic.
-2. Prefer running `uv run python skills/hacker-news-digest-ja/scripts/fetch_hn_stories.py` from the repository root.
-3. If `uv` is unavailable, fall back to `python3 skills/hacker-news-digest-ja/scripts/fetch_hn_stories.py`.
+2. Run `uv run python <skill-dir>/scripts/fetch_hn_stories.py`, where `<skill-dir>` is this skill's base directory announced when the skill is invoked.
+3. If `uv` is unavailable, run `python3 <skill-dir>/scripts/fetch_hn_stories.py`.
 4. If shell execution cannot reach the network, reproduce the script's exact URL and filters with the available web-fetching tool instead of changing the behavior.
 5. Use the fetched stories as the source of truth. Preserve the order returned by the API.
 6. For each story:
@@ -67,5 +67,4 @@ Formatting rules:
 ## Typical trigger examples
 
 - "昨日の Hacker News の人気記事を日本語で一覧にして"
-- "`main.py` を Gemini なしで使える skill にしたい"
 - "HN の 100 点超え記事を訳して 1 行ずつ要約して"
