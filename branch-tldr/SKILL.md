@@ -120,6 +120,7 @@ Do not rely on a TOML parser. Read the file with `cat` and pick up `max_line_len
 
 The level changes only the wording; the three bullet roles and `max_line_length` stay the same at every level.
 The level definitions live in the `expertise-rewriter` agent, not in this skill.
+The agent definition is at https://github.com/tsubasaogawa/dotfiles/blob/master/dotfiles.d/.claude.link/agents/expertise-rewriter.md.
 
 1. Draft the three bullets at the `high` level: use domain terms and identifiers (resource types, variable names, filenames) as they are.
    In the impact bullet, state what to check before merging or applying.

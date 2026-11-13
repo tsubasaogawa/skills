@@ -25,6 +25,7 @@ Use `--expertise` to change the reader's expertise level for a single run.
 ```
 
 Levels other than `high` are written by the `expertise-rewriter` agent, so that agent must be installed.
+The agent definition is at <https://github.com/tsubasaogawa/dotfiles/blob/master/dotfiles.d/.claude.link/agents/expertise-rewriter.md>.
 
 ## Configuration
 
