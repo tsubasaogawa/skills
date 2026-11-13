@@ -21,11 +21,13 @@ Use `--expertise` to change the reader's expertise level for a single run.
 
 ```text
 /branch-tldr --expertise high
-/branch-tldr 123 --expertise low
+/branch-tldr 123 --expertise minimum
 ```
+
+Levels other than `high` are written by the `expertise-rewriter` agent, so that agent must be installed.
 
 ## Configuration
 
-Set the maximum line length, writing style, and reader's expertise level (`high`, `medium`, or `low`; default `medium`) in `~/.config/branch-tldr/config.toml`. The skill uses its defaults when the file does not exist.
+Set the maximum line length, writing style, and reader's expertise level (`high`, `medium`, `low`, or `minimum`; default `medium`) in `~/.config/branch-tldr/config.toml`. The skill uses its defaults when the file does not exist.
 
 This skill is not for creating commit messages, reviewing code quality, or summarizing only uncommitted changes. See [SKILL.md](SKILL.md) for details.
