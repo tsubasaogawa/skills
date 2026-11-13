@@ -107,7 +107,7 @@ GitHub's squash-merge collapses every commit in a PR into a single commit with o
 - **Expected (squash-merge)**: single parent, but confirmed as coming from a specified branch via a matching PR number in the subject line or a matching `git patch-id`
 - **Anomalous (contamination)**: none of the above apply — a regular code commit, a merge commit unrelated to the specified branches, or a patch-id mismatch where the file diff also contains changes absent from any specified branch
 
-**Remaining limitation**: `git patch-id` assumes the diff content is an exact match. If even a single line differs after the squash — say, from resolving a merge conflict — the hashes won't match, and automatic classification stops there. In that case, fall back to a manual file-by-file review with `git diff --stat` / `git diff`. That said, "the SHA gets rewritten, so there's no way to verify it" no longer holds — diff-content equality can still be checked mechanically before you ever need to fall back to manual review.
+**Remaining limitation**: `git patch-id` assumes the diff content is an exact match. If even a single line differs after the squash — say, from resolving a merge conflict — the hashes won't match, and automatic classification stops there. In that case, fall back to a manual file-by-file review with `git diff --stat` / `git diff`.
 
 ## 5. Report the result
 

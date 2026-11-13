@@ -43,6 +43,6 @@ Do not read any config file. Language and mode come only from the arguments abov
 4. **Commit**. Run `git commit -m "..."` with the chosen or inferred message. Format: `<type>(<scope>): <subject>` + body/footer as needed.
    - Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
    - Multi-line messages are allowed. Keep the body short and focused on the "why".
-   - **IMPORTANT**: If the commit message is written in Japanese, always use plain form (常体 / だ・である調), never polite form (敬体 / です・ます調).
+   - Write Japanese commit messages in plain form (常体 / だ・である調), not polite form (敬体 / です・ます調).
 
 5. **Stop**. Once the commit command exits successfully, report the subject line in one sentence and finish. Do not run `git log`, `git status`, or any follow-up commands to verify.
