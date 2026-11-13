@@ -4,7 +4,8 @@
 # (leave empty to save at the vault root).
 directory = ""
 # Set to true when notes should be saved into an Obsidian vault.
-# The note is then created through the Obsidian CLI, which requires Obsidian to be running.
+# The note is then written into the vault by scripts/obsidian_stock.py.
+# Obsidian needs to be running only when vault_name is empty.
 use_obsidian_cli = false
 # Name the Obsidian vault to save into. Only used when use_obsidian_cli = true.
 # Leave empty to use whichever vault Obsidian currently has focused.

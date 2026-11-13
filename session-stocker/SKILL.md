@@ -3,7 +3,7 @@ description: Summarize useful knowledge from the current conversation and save i
 argument-hint: "[--plain] [--simplify] [<vault name>]"
 name: session-stocker
 metadata:
-  version: 0.2.0
+  version: 0.3.0
 ---
 # Session Stock
 
@@ -88,7 +88,9 @@ Simplify mode is independent of [Plain mode](#plain-mode) — the two combine fr
 | absent (default) | absent (default) | `会話内容` | verbatim, both parties |
 | absent | present | `会話内容` | summarized, both parties |
 | present | absent | `回答内容` | verbatim, assistant only |
-| present | present | `回答内容` | summarized, assistant only |
+| present | present | `回答内容` | one summary of the assistant's output as a whole, assistant only |
+
+When both flags are on, `回答内容` is a single summary of everything the assistant said across the session — not a turn-by-turn list of per-turn summaries.
 
 ## Output requirements
 
@@ -207,8 +209,12 @@ Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains ev
 
 - Use the actual assistant message text, verbatim — do not summarize or paraphrase, same as `会話内容`.
 - Leave out tool-call/tool-result noise, raw command output, and system-reminder content, same exclusion rule as `会話内容`.
-- Separate consecutive assistant utterances so the boundaries stay legible when read back — a `**Assistant:**` label per turn or a `---` divider both work. Don't use `**User:**` labels; there's nothing to attribute to the user in this section.
-- When [simplify mode](#simplify-mode) is on (`--simplify`), write a condensed summary of the assistant's output instead — cover the key points and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
+- Separate consecutive assistant utterances so the boundaries stay legible when read back — a `**Assistant:**` label per turn or a `---` divider both work.
+  Don't use `**User:**` labels; there's nothing to attribute to the user in this section.
+- When [simplify mode](#simplify-mode) is on (`--simplify`), replace all of the above with one summary of the assistant's output as a whole —
+  the key points and outcomes across the entire session, not exact wording.
+  Do not summarize turn by turn, and do not use per-turn `**Assistant:**` labels or `---` dividers.
+  This does not apply when simplify is off (default), where the verbatim rule above still governs.
 
 #### `知見`
 
@@ -260,7 +266,11 @@ python3 <skill-dir>/scripts/obsidian_stock.py create \
 
 Write the Markdown body (everything from the `---` frontmatter block down) to a temp file first, then pass it with `--body`. The script writes the bytes as-is, so the frontmatter arrives intact. The script resolves the vault (from `vault_name`, or the currently focused vault if that's empty), treats `artifacts.directory` as the vault-relative folder, adds the `YYYYMMDD_HHMM` prefix, sanitizes the title, picks a collision-free `-2`/`-3` name, verifies the file on disk byte for byte, and prints the vault name and note path it used. Report that path to the user.
 
-Obsidian does not need to be running. The script reads the vault registry from `obsidian.json` when the CLI does not answer, and a running Obsidian is asked to open the new note only as a best-effort nicety — if it is closed, its file watcher indexes the note at next start. The one exception is an unnamed vault: resolving "whichever vault is currently focused" requires a running Obsidian.
+Obsidian does not need to be running.
+The script reads the vault registry from `obsidian.json` when the CLI does not answer,
+and Obsidian's file watcher indexes the new note on its own (at next start if it is closed).
+The script does not ask Obsidian to open the note.
+The one exception is an unnamed vault: resolving "whichever vault is currently focused" requires a running Obsidian.
 
 **Explicit vault override**: if the user's request or slash-command ARGUMENTS name an Obsidian vault to save into (e.g. "Work vault に保存して"), prioritize that vault for this run by passing `--vault "<name>"` — same pattern as `semantic-commit-helper` prioritizing a language named in ARGUMENTS. This overrides `vault_name` (and the fallback to whichever vault is currently focused), and it applies even if `use_obsidian_cli` is `false`: naming a vault is itself a signal the user wants this note saved into Obsidian. The folder still comes from `artifacts.directory` as a vault-relative path (empty means vault root).
 
@@ -282,6 +292,7 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
    - In plain mode: every assistant utterance, in order, with user turns left out (`回答内容`).
    - Not in simplify mode (default): write that content verbatim, turn-by-turn.
    - In simplify mode: write that content as a condensed summary instead of a verbatim transcript.
+     In plain + simplify, that is one summary of the assistant's output as a whole, not per turn.
    Generate the session summary either way, and build the `model` frontmatter from your own model name (see [frontmatter](#frontmatter)).
 3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`, `use_obsidian_cli`, and `template`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 4. If `template` is set, read the template file: with `use_obsidian_cli = true` or a vault named explicitly, run `python3 <skill-dir>/scripts/obsidian_stock.py template [--vault "<name>"]` and read the local path it prints; otherwise read the absolute path directly. Render the note by replacing the placeholders ([Template mode](#template-mode)) instead of building the built-in layout.
@@ -290,7 +301,13 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
    - No vault named, `use_obsidian_cli = false`: ensure the artifacts directory exists (create it if necessary) and write the file there using the required naming rule.
    - No vault named, `use_obsidian_cli = true`: write the body to a temp file and run `scripts/obsidian_stock.py create` as described above — it handles the naming rule and the directory itself.
 6. Tell the user the saved path and briefly summarize what was captured.
-7. Ask the user whether they want to add a `知見` section, e.g. 「知見を追加しますか？」. If they say yes, extract the durable learnings and add the `知見` section to the already-saved note (right after `会話内容` or `回答内容`, before `参考情報` if present) — editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use. Keep the frontmatter block untouched when you push the note back. If they decline or don't respond, leave the note as is.
+7. Let the user know a `知見` section can be added on request — phrase it as an offer, not a question, e.g. 「知見を追加したいときは教えて」.
+   Don't wait for an answer.
+   If the user later asks for it, extract the durable learnings and add the `知見` section to the already-saved note
+   (right after `会話内容` or `回答内容`, before `参考情報` if present) —
+   editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use.
+   Keep the frontmatter block untouched when you push the note back.
+   Otherwise, leave the note as is.
 
 ## Quality bar
 
@@ -301,7 +318,8 @@ Before saving, check that:
 - the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
 - exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `--plain` was in the invoking ARGUMENTS — never both
 - the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
-- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
+- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim —
+  unless `--simplify` was in the invoking ARGUMENTS, in which case it's one summary of the assistant's output as a whole, not per-turn summaries
 - tool-call noise, raw command output, and system-reminder content are excluded from `会話内容` / `回答内容`
 - the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
 - the `参考情報` section appears only when relevant URLs exist
