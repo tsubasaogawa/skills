@@ -3,14 +3,14 @@ name: drafting-tweet-from-today
 description: List the insights gained from the day's Claude Code sessions, narrow them to 3 candidate themes for X (Twitter), let the user pick one, and draft a tweet of 140 characters or fewer. Use for requests like "turn today's insights into a tweet" or "give me something to post on X". Does not post.
 disable-model-invocation: true
 argument-hint: "[YYYY-MM-DD]"
-allowed-tools: Read, AskUserQuestion, Agent, Bash(python -I:*)
+allowed-tools: Read, AskUserQuestion, Agent, Bash(python -I:*), Bash(Obsidian.com vault=documents daily:append:*)
 metadata:
   version: 0.0.1
 ---
 
 # Drafting Tweet From Today
 
-Pick up insights from the day's sessions and write one draft tweet for X. The only deliverable is the draft shown in chat. Do not post, save to memory, or edit notes.
+Pick up insights from the day's sessions and write one draft tweet for X. The deliverables are the draft shown in chat and one Thino memo holding it. Do not post, save to memory, or edit other notes.
 
 ## 1. Extract the day's sessions
 
@@ -62,3 +62,16 @@ python -I -c "print(len('''<draft>'''))"
 
 Show the draft in a `text` code block with its character count.
 Then briefly note what changed from the source material and what to check before posting (unverified steps, details that did not fit).
+
+## 6. Save the draft to Thino
+
+Append the final draft to today's daily note in the `documents` vault as a Thino memo, tagged `#drafting-tweet-from-today`.
+
+```bash
+Obsidian.com vault=documents daily:append "content=- $(date +%H:%M) <draft> #drafting-tweet-from-today"
+```
+
+- Call `Obsidian.com`, not `obsidian`. The latter exits without writing
+- Wrap the whole `content=...` argument in double quotes. Escape any `"`, `$`, or backtick in the draft
+- The tag is outside the 140-character count. Do not include it in the draft shown in step 5
+- Confirm the command printed `Added to: <path>` and report that path. If it did not, say the memo was not saved
