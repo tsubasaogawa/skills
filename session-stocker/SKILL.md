@@ -1,9 +1,9 @@
 ---
 description: Summarize useful knowledge from the current conversation and save it as a Markdown note in the directory configured by `config.toml` (`artifacts.directory`). Use this skill whenever the user asks to stock, archive, preserve, save, memoize, or record the current session, especially when they say phrases like `このセッションをストックして`, want a reusable note from the conversation, or ask to write a session summary into an artifacts folder.
-argument-hint: "[--plain] [--simplify] [<vault name>]"
+argument-hint: "[--raw] [<vault name>]"
 name: session-stocker
 metadata:
-  version: 0.3.0
+  version: 0.4.0
 ---
 # Session Stock
 
@@ -11,7 +11,7 @@ Turn the current session into a reusable Markdown artifact and save it to the di
 
 ## Goal
 
-Capture the conversation in a form the user can revisit later. Preserve the actual exchange verbatim rather than compressing it into a summary — durable takeaways (`知見`) are an optional add-on, not the primary content. Pass `--simplify` in the invoking ARGUMENTS to condense the transcript into a summary instead; this is off by default (see [Simplify mode](#simplify-mode)).
+Capture the conversation in a form the user can revisit later. By default, the core of the note is `内容`: an organized write-up of the session whose structure you choose to fit what actually happened, keeping reusable artifacts word for word and condensing the rest. Pass `--raw` in the invoking ARGUMENTS to save the verbatim, turn-by-turn transcript (`会話内容`) instead (see [Raw mode](#raw-mode)). Durable takeaways (`知見`) are an optional add-on in either case.
 
 ## When to use this skill
 
@@ -57,40 +57,29 @@ Template mode is on whenever `artifacts.template` is set. The note is then produ
 | `{{time}}` | current local time, `HH:mm` |
 | `{{model}}` | `<vendor>.<model-name>` (see [frontmatter](#frontmatter)) |
 | `{{summary}}` | the body of `概要` |
-| `{{content}}` | the body of `会話内容` — or `回答内容` in plain mode; `--plain` / `--simplify` apply exactly as without a template |
+| `{{content}}` | the body of `内容` — or of `会話内容` with `--raw`, exactly as without a template |
 | `{{insights}}` | the body of `知見`; an empty string on the first save |
 | `{{references}}` | the `参考情報` URL bullets; an empty string when there are none |
 
 - Replace a placeholder with the body only — the template owns the headings, so don't emit `## 概要` and friends yourself.
+- When `{{insights}}` or `{{references}}` would be replaced with an empty string, drop the heading that owns it too: if the section from the nearest heading above the placeholder down to the next heading (or the end of the file) contains nothing but that placeholder and blank lines, remove that whole section, heading included. If the section holds anything else, just replace the placeholder with an empty string and keep the rest.
 - Leave any other `{{...}}` untouched; only the placeholders in the table are yours. Templater's `<% %>` syntax is not affected either.
 - The template is responsible for the frontmatter. Recommend `model: {{model}}` there if the user asks how to write one, but never add keys or sections the template doesn't contain.
 - If the template file can't be read (key set but file missing), tell the user and stop — don't silently fall back to the built-in layout.
 - Adding `知見` later: if the template contains `{{insights}}`, re-render the whole template with it filled in and overwrite the saved note. If it doesn't, insert `## 知見` right after the content section as in the built-in layout.
 
-## Plain mode
+## Raw mode
 
-By default, the stock target is the full conversation (`会話内容`, verbatim turns from both the user and the assistant). Plain mode narrows that down to **assistant output only** — every assistant utterance in the session, in order, with user turns left out entirely.
+By default, the body of the note is `## 内容`, an organized write-up of the session (see [`内容`](#内容)). Raw mode replaces it with `## 会話内容`, a verbatim, turn-by-turn transcript of what the user and the assistant said.
 
-Plain mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--plain` (e.g. `/session-stocker --plain`). It takes no value — `--plain` alone turns it on, and its absence leaves it off. A natural-language request like「plain で保存して」does not trigger it — only the explicit ARGUMENTS flag does. This check is independent of the vault-name override described below; both can apply at once.
+Raw mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--raw` (e.g. `/session-stocker --raw`). It takes no value — `--raw` alone turns it on, and its absence leaves it off. A natural-language request like「会話をそのまま保存して」does not trigger it — only the explicit ARGUMENTS flag does. This check is independent of the vault-name override described below; both can apply at once.
 
-When plain mode is on, the file uses `## 回答内容` instead of `## 会話内容` (see Output requirements and Writing guidance) — the two never appear together in the same note.
+| `--raw` | Section | Content |
+|---|---|---|
+| absent (default) | `内容` | organized write-up, structure chosen per session |
+| present | `会話内容` | verbatim transcript, both parties |
 
-## Simplify mode
-
-By default, `会話内容` (or `回答内容` in plain mode) is a verbatim, turn-by-turn transcript. Simplify mode replaces that with a condensed summary of what was discussed/done instead — still faithful to what happened, but not word-for-word.
-
-Simplify mode is on only when the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--simplify` (e.g. `/session-stocker --simplify`). It takes no value — `--simplify` alone turns it on, and its absence leaves it off. A natural-language request like「内容を要約して保存して」does not trigger it — only the explicit ARGUMENTS flag does. Without the flag the transcript stays verbatim, matching the skill's existing behavior.
-
-Simplify mode is independent of [Plain mode](#plain-mode) — the two combine freely:
-
-| `--plain` | `--simplify` | Section | Content |
-|---|---|---|---|
-| absent (default) | absent (default) | `会話内容` | verbatim, both parties |
-| absent | present | `会話内容` | summarized, both parties |
-| present | absent | `回答内容` | verbatim, assistant only |
-| present | present | `回答内容` | one summary of the assistant's output as a whole, assistant only |
-
-When both flags are on, `回答内容` is a single summary of everything the assistant said across the session — not a turn-by-turn list of per-turn summaries.
+The two sections never appear together in the same note.
 
 ## Output requirements
 
@@ -112,10 +101,10 @@ model: <vendor>.<model-name>
 
 ## 概要
 
-## 会話内容
+## 内容
 ```
 
-In plain mode (see [Plain mode](#plain-mode)), use `## 回答内容` in place of `## 会話内容` — never both:
+In raw mode (see [Raw mode](#raw-mode)), use `## 会話内容` in place of `## 内容` — never both:
 
 ```md
 ---
@@ -125,10 +114,10 @@ model: <vendor>.<model-name>
 
 ## 概要
 
-## 回答内容
+## 会話内容
 ```
 
-`知見` is optional. Only add it after saving, once the user has confirmed they want it (see Execution steps). When present, it goes right after `会話内容` (or `回答内容` in plain mode):
+`知見` is optional. Only add it after saving, once the user has confirmed they want it (see Execution steps). When present, it goes right after `内容` (or `会話内容` in raw mode):
 
 ```md
 ## 知見
@@ -193,28 +182,25 @@ Examples (illustrative only; always write the ID of the model actually running):
 
 Write a short overview of what the session accomplished. Keep it compact and outcome-oriented.
 
-#### `会話内容`
+#### `内容`
 
-This is the core of the artifact: a verbatim, turn-by-turn transcript of what the user and the assistant actually said, in order. Do not summarize or condense it — the whole point of this section is to preserve the conversation as it happened, not a distilled version of it.
+This is the core of the artifact by default: a write-up of the session that someone can read later without the chat log and come away with everything worth keeping.
+
+- Choose the structure to fit the session. An investigation, a design discussion, an implementation, and a quick Q&A call for different shapes — use `###` (or deeper) headings, bullets, tables, or prose as the material demands. Do not force a fixed set of subsections, and do not leave empty ones.
+- Keep reusable artifacts word for word: final code, commands, configuration, drafted text, decisions as they were stated, and error messages needed to reproduce a problem. Condense the path that led there.
+- Keep abandoned approaches only when the reason they were dropped would inform a future decision.
+- Stay faithful to the session. Do not add facts, steps, or conclusions that weren't in it, and mark anything left unresolved as unresolved.
+- Leave out tool-call/tool-result noise, local-command output, and system-reminder content, except where quoting a specific output is itself worth keeping (see above).
+- Don't repeat `概要`: `概要` states the outcome in a few lines, `内容` carries the substance.
+
+#### `会話内容` (raw mode only)
+
+Used instead of `内容` when [raw mode](#raw-mode) is on: a verbatim, turn-by-turn transcript of what the user and the assistant actually said, in order. Do not summarize or condense it — the whole point of this section is to preserve the conversation as it happened, not a distilled version of it.
 
 - Render each turn as a `**User:**` or `**Assistant:**` block followed by that turn's text, in the order the turns occurred.
 - Use the actual message text the user and assistant exchanged, not a paraphrase.
 - Leave out tool-call/tool-result noise (function calls, raw command output, intermediate tool payloads) — keep only what the user and the assistant actually said to each other. Local-command output and system-reminder tags are not part of the conversation and should also be left out.
 - If the session is extremely long, it's fine to include the whole thing; do not truncate for length unless the user asks you to.
-- When [simplify mode](#simplify-mode) is on (`--simplify`), write a condensed summary of the exchange instead — cover the key turns, decisions, and outcomes, but do not preserve exact wording. This does not apply when simplify is off (default), where the verbatim rule above still governs.
-
-#### `回答内容` (plain mode only)
-
-Used instead of `会話内容` when [plain mode](#plain-mode) is on. Contains every assistant utterance from the session, in order, with user turns left out entirely.
-
-- Use the actual assistant message text, verbatim — do not summarize or paraphrase, same as `会話内容`.
-- Leave out tool-call/tool-result noise, raw command output, and system-reminder content, same exclusion rule as `会話内容`.
-- Separate consecutive assistant utterances so the boundaries stay legible when read back — a `**Assistant:**` label per turn or a `---` divider both work.
-  Don't use `**User:**` labels; there's nothing to attribute to the user in this section.
-- When [simplify mode](#simplify-mode) is on (`--simplify`), replace all of the above with one summary of the assistant's output as a whole —
-  the key points and outcomes across the entire session, not exact wording.
-  Do not summarize turn by turn, and do not use per-turn `**Assistant:**` labels or `---` dividers.
-  This does not apply when simplify is off (default), where the verbatim rule above still governs.
 
 #### `知見`
 
@@ -286,13 +272,10 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
 
 ## Execution steps
 
-1. Check whether the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--plain`. If so, this run is in [plain mode](#plain-mode). Separately, check whether they literally contain the bare flag `--simplify`. If so, this run is in [simplify mode](#simplify-mode); otherwise simplify is off (default).
-2. Review the current conversation and reconstruct the content section:
-   - Not in plain mode: the transcript (`会話内容`).
-   - In plain mode: every assistant utterance, in order, with user turns left out (`回答内容`).
-   - Not in simplify mode (default): write that content verbatim, turn-by-turn.
-   - In simplify mode: write that content as a condensed summary instead of a verbatim transcript.
-     In plain + simplify, that is one summary of the assistant's output as a whole, not per turn.
+1. Check whether the slash-command ARGUMENTS that invoked this skill literally contain the bare flag `--raw`. If so, this run is in [raw mode](#raw-mode); otherwise it is not (default).
+2. Review the current conversation and build the content section:
+   - Default: write `内容`, an organized write-up following [`内容`](#内容).
+   - In raw mode: write `会話内容`, the verbatim turn-by-turn transcript.
    Generate the session summary either way, and build the `model` frontmatter from your own model name (see [frontmatter](#frontmatter)).
 3. Read `~/.config/session-stocker/config.toml` and resolve `artifacts.directory`, `use_obsidian_cli`, and `template`. Determine the current local date and time (`YYYYMMDD_HHMM`) for the filename.
 4. If `template` is set, read the template file: with `use_obsidian_cli = true` or a vault named explicitly, run `python3 <skill-dir>/scripts/obsidian_stock.py template [--vault "<name>"]` and read the local path it prints; otherwise read the absolute path directly. Render the note by replacing the placeholders ([Template mode](#template-mode)) instead of building the built-in layout.
@@ -304,7 +287,7 @@ If the script fails — `vault_name` not among the known vaults, the vault path 
 7. Let the user know a `知見` section can be added on request — phrase it as an offer, not a question, e.g. 「知見を追加したいときは教えて」.
    Don't wait for an answer.
    If the user later asks for it, extract the durable learnings and add the `知見` section to the already-saved note
-   (right after `会話内容` or `回答内容`, before `参考情報` if present) —
+   (right after `内容` or `会話内容`, before `参考情報` if present) —
    editing the file directly, or via `scripts/obsidian_stock.py overwrite` when the Obsidian CLI is in use.
    Keep the frontmatter block untouched when you push the note back.
    Otherwise, leave the note as is.
@@ -316,13 +299,12 @@ Before saving, check that:
 - the note body was never passed to the `obsidian` CLI as an argument
 - the filename matches the required pattern
 - the note starts with a YAML frontmatter block carrying `model: <vendor>.<model-name>`, naming the model that actually wrote the note
-- exactly one of `会話内容` (normal mode) or `回答内容` (plain mode) is present, matching whether `--plain` was in the invoking ARGUMENTS — never both
-- the `会話内容` section is a verbatim transcript of the actual exchange, not a summary or paraphrase — unless `--simplify` was in the invoking ARGUMENTS, in which case it's a condensed summary instead
-- the `回答内容` section, when present, contains only assistant utterances (no user turns), verbatim —
-  unless `--simplify` was in the invoking ARGUMENTS, in which case it's one summary of the assistant's output as a whole, not per-turn summaries
-- tool-call noise, raw command output, and system-reminder content are excluded from `会話内容` / `回答内容`
+- exactly one of `内容` (default) or `会話内容` (raw mode) is present, matching whether `--raw` was in the invoking ARGUMENTS — never both
+- the `内容` section, when present, is structured to fit the session, keeps reusable artifacts word for word, and contains nothing that wasn't in the session
+- the `会話内容` section, when present, is a verbatim transcript of the actual exchange, not a summary or paraphrase
+- tool-call noise and system-reminder content are excluded from `内容` / `会話内容` (in `内容`, quoting a specific output worth keeping is fine)
 - the `知見` section is only present if the user explicitly asked for it, and if so, contains real takeaways rather than a repeat of the transcript
 - the `参考情報` section appears only when relevant URLs exist
 - when `参考情報` is present, it contains URLs only
 - any link to another note in the stock directory follows the Obsidian-detection rule (wiki link vs. Markdown link), not a mix of both
-- in template mode: every placeholder from the table is replaced, no other text in the template was changed, and no built-in headings were added on top of the template
+- in template mode: every placeholder from the table is replaced, no other text in the template was changed apart from dropping sections left empty by `{{insights}}` / `{{references}}`, and no built-in headings were added on top of the template
